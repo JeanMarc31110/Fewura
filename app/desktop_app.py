@@ -522,16 +522,80 @@ class FewuraDesktop(tk.Tk):
             for prospect in selected:
                 try:
                     draft = api_request(f"/api/prospects/{prospect['id']}/email", "POST", {"senderName": "Jean Marc", "offer": "l’automatisation de tâches répétitives pour les TPE et PME"})
-                    success.append(f"✓ {prospect.get('business_name', '')} — {draft.get('subject', 'Brouillon généré')}")
+                    success.append({"prospect": prospect, "draft": draft})
                 except ApiError as error:
-                    errors.append(f"! {prospect.get('business_name', '')} — {error}")
+                    errors.append({"prospect": prospect, "error": str(error)})
             return success, errors
         def show_result(result):
             success, errors = result
-            lines = [f"{len(success)}/{len(selected)} brouillon(s) généré(s). Aucun e-mail n’a été envoyé.", ""] + success + errors
-            messagebox.showinfo("Validation des mails", "\n".join(lines))
+            self.open_email_validation_dialog(selected, success, errors)
             self.load_prospects()
         self.run_async(validate, show_result)
+
+    def open_email_validation_dialog(self, selected, success, errors):
+        dialog = tk.Toplevel(self)
+        dialog.title("Validation des mails")
+        dialog.geometry("920x650")
+        dialog.minsize(760, 500)
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.configure(bg=BG)
+        tk.Label(dialog, text="Validation des mails", bg=BG, fg=INK, font=("Segoe UI", 16, "bold")).pack(anchor="w", padx=20, pady=(18, 2))
+        tk.Label(dialog, text=f"{len(success)}/{len(selected)} brouillon(s) généré(s). Aucun e-mail n’a encore été envoyé.", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(0, 12))
+        body = tk.Frame(dialog, bg=BG)
+        body.pack(fill="both", expand=True, padx=20)
+        left = tk.Frame(body, bg=CARD, highlightbackground=LINE, highlightthickness=1)
+        left.pack(side="left", fill="y", padx=(0, 12))
+        tk.Label(left, text="Messages préparés", bg=CARD, fg=INK, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(12, 6))
+        listbox = tk.Listbox(left, width=34, height=22, activestyle="none", selectmode="browse", font=("Segoe UI", 9), relief="flat", borderwidth=0, bg=CARD, fg=INK)
+        listbox.pack(side="left", fill="y", padx=(12, 0), pady=(0, 12))
+        list_scroll = ttk.Scrollbar(left, orient="vertical", command=listbox.yview)
+        list_scroll.pack(side="right", fill="y", padx=(0, 10), pady=(0, 12))
+        listbox.configure(yscrollcommand=list_scroll.set)
+        items = []
+        for item in success:
+            prospect, draft = item["prospect"], item["draft"]
+            items.append((prospect, draft))
+            listbox.insert("end", f"✓ {prospect.get('business_name', '')}")
+        for item in errors:
+            listbox.insert("end", f"! {item['prospect'].get('business_name', '')}")
+        preview_frame = tk.Frame(body, bg=CARD, highlightbackground=LINE, highlightthickness=1)
+        preview_frame.pack(side="left", fill="both", expand=True)
+        tk.Label(preview_frame, text="Aperçu du mail", bg=CARD, fg=INK, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=14, pady=(12, 6))
+        preview = tk.Text(preview_frame, wrap="word", font=("Segoe UI", 10), bg="#ffffff", fg=INK, relief="flat", padx=14, pady=10)
+        preview.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=(0, 12))
+        preview_scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=preview.yview)
+        preview_scroll.pack(side="right", fill="y", padx=(0, 12), pady=(0, 12))
+        preview.configure(yscrollcommand=preview_scroll.set, state="disabled")
+
+        def show_preview(_event=None):
+            index = listbox.curselection()
+            if not index: return
+            position = index[0]
+            if position >= len(items):
+                content = errors[position - len(items)]["error"]
+            else:
+                prospect, draft = items[position]
+                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\n\n{draft.get('body', '')}"
+            preview.configure(state="normal")
+            preview.delete("1.0", "end")
+            preview.insert("1.0", content)
+            preview.configure(state="disabled")
+        listbox.bind("<<ListboxSelect>>", show_preview)
+        if items: listbox.selection_set(0); show_preview()
+
+        actions = tk.Frame(dialog, bg=BG)
+        actions.pack(fill="x", padx=20, pady=16)
+        tk.Button(actions, text="Fermer", command=dialog.destroy, bg=CARD, fg=INK, relief="solid", bd=1, padx=14, pady=8).pack(side="right", padx=(8, 0))
+        sendable_ids = [prospect.get("id") for prospect in self.prospects if prospect.get("email") and not prospect.get("optOut") and prospect.get("stage") != "excluded"]
+        selected_ids = [item["prospect"].get("id") for item in success]
+        def send(ids, label):
+            if not ids: return messagebox.showinfo("Envoi des mails", "Aucun e-mail valide à envoyer.", parent=dialog)
+            if not messagebox.askyesno("Confirmer l’envoi", f"Envoyer réellement {len(ids)} e-mail(s) ({label}) ?\n\nCette action créera une activité d’envoi dans le CRM.", parent=dialog): return
+            dialog.destroy()
+            self.run_async(lambda: api_request("/api/prospects/bulk-send-email", "POST", {"ids": ids, "senderName": "Jean Marc", "offer": "l’automatisation de tâches répétitives pour les TPE et PME"}), lambda data: messagebox.showinfo("Envoi des mails", f"{data.get('sent', 0)}/{data.get('total', len(ids))} e-mail(s) envoyé(s)."))
+        tk.Button(actions, text="Envoyer tous les e-mails", command=lambda: send(sendable_ids, "tous les prospects avec e-mail"), bg=ACCENT, fg="white", relief="flat", padx=14, pady=8).pack(side="right", padx=8)
+        tk.Button(actions, text="Envoyer la sélection", command=lambda: send(selected_ids, "la sélection"), bg="#16a46a", fg="white", relief="flat", padx=14, pady=8).pack(side="right")
 
     def open_selected_prospect(self):
         prospect = self.selected_prospect()

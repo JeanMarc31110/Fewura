@@ -1211,6 +1211,48 @@ app.post("/api/prospects/:id/email", (req, res) => {
   res.json({ subject, body, html: htmlWithLogo, disclaimer: "Brouillon commercial généré à partir des informations publiques enregistrées. Vérifiez les faits, la source et les règles applicables avant tout envoi." });
 });
 
+async function sendProspectEmail(id, options = {}) {
+  if (!gmailIsAuthorized()) throw new Error("Gmail n’est pas encore autorisé. Configurez les identifiants OAuth puis ouvrez /auth/gmail.");
+  const prospect = rowToProspect(findById.get(Number(id)));
+  if (!prospect) throw new Error("Prospect introuvable.");
+  if (!prospect.email) throw new Error("Ce prospect n’a pas d’adresse email.");
+  if (prospect.optOut || prospect.stage === "excluded") throw new Error("Ce prospect est exclu des contacts commerciaux.");
+  const draftResponse = await fetch(`http://127.0.0.1:${PORT}/api/prospects/${prospect.id}/email`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(options)
+  });
+  const draft = await draftResponse.json();
+  if (!draftResponse.ok) throw new Error(draft.error || "Message impossible à préparer.");
+  const gmail = google.gmail({ version: "v1", auth: authorizedGmailClient() });
+  const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html }) } });
+  db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
+    .run(prospect.id, "email", `E-mail envoyé à ${prospect.email} : ${draft.subject}`, now());
+  return { id: prospect.id, businessName: prospect.businessName, to: prospect.email, subject: draft.subject, messageId: sent.data.id || "" };
+}
+
+app.post("/api/prospects/:id/send-email", async (req, res) => {
+  try {
+    res.status(200).json(await sendProspectEmail(req.params.id, { senderName: req.body.senderName, offer: req.body.offer }));
+  } catch (error) {
+    res.status(502).json({ error: `Envoi impossible : ${error.message}` });
+  }
+});
+
+app.post("/api/prospects/bulk-send-email", async (req, res) => {
+  const ids = [...new Set((Array.isArray(req.body.ids) ? req.body.ids : []).map(Number).filter(Number.isInteger))].slice(0, 500);
+  if (!ids.length) return res.status(400).json({ error: "Aucun prospect sélectionné." });
+  const results = [];
+  for (const id of ids) {
+    try {
+      results.push({ ok: true, ...(await sendProspectEmail(id, { senderName: req.body.senderName, offer: req.body.offer })) });
+    } catch (error) {
+      results.push({ ok: false, id, error: error.message });
+    }
+  }
+  res.json({ sent: results.filter((item) => item.ok).length, total: results.length, results });
+});
+
 app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "public", "index.html")));
 
 app.listen(PORT, () => console.log(`CRM disponible sur http://localhost:${PORT}`));
