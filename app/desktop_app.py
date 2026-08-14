@@ -518,7 +518,7 @@ class FewuraDesktop(tk.Tk):
     def validate_selected_emails(self):
         selected = self.selected_prospects()
         if not selected: return messagebox.showinfo("Validation des mails", "Sélectionnez au moins un prospect.")
-        self.choose_email_offer(selected)
+        self._validate_selected_emails(selected, "toutes les offres FÉWURA")
 
     def choose_email_offer(self, selected):
         dialog = tk.Toplevel(self)
