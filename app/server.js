@@ -181,7 +181,11 @@ function encodedMimeHeader(value) {
   return `=?UTF-8?B?${Buffer.from(value, "utf8").toString("base64")}?=`;
 }
 
-function buildGmailRawMessage({ to, subject, body, html }) {
+function wrapBase64(value) {
+  return String(value).match(/.{1,76}/g)?.join("\r\n") || "";
+}
+
+function buildGmailRawMessage({ to, subject, body, html, logoBase64 = "" }) {
   const boundary = `fewura_${Date.now()}_${Math.random().toString(16).slice(2)}`;
   const raw = [
     `To: ${to}`,
@@ -199,6 +203,15 @@ function buildGmailRawMessage({ to, subject, body, html }) {
     "Content-Transfer-Encoding: base64",
     "",
     Buffer.from(html, "utf8").toString("base64"),
+    ...(logoBase64 ? [
+      `--${boundary}`,
+      "Content-Type: image/png; name=\"fewura-logo.png\"",
+      "Content-Transfer-Encoding: base64",
+      "Content-Disposition: inline; filename=\"fewura-logo.png\"",
+      "Content-ID: <fewura-logo>",
+      "",
+      wrapBase64(logoBase64)
+    ] : []),
     `--${boundary}--`,
     ""
   ].join("\r\n");
@@ -1172,7 +1185,9 @@ app.post("/api/prospects/:id/gmail-draft", async (req, res) => {
     const draft = await draftResponse.json();
     if (!draftResponse.ok) return res.status(draftResponse.status).json(draft);
     const gmail = google.gmail({ version: "v1", auth: authorizedGmailClient() });
-    const created = await gmail.users.drafts.create({ userId: "me", requestBody: { message: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html }) } } });
+    const logoPath = path.join(__dirname, "fewura-logo.png");
+    const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString("base64") : "";
+    const created = await gmail.users.drafts.create({ userId: "me", requestBody: { message: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html, logoBase64 }) } } });
     db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
       .run(id, "gmail_draft", `Brouillon Gmail créé pour ${prospect.email} : ${draft.subject}`, now());
     res.status(201).json({ draftId: created.data.id, messageId: created.data.message?.id || "", to: prospect.email, subject: draft.subject, account: gmailConfig().account });
@@ -1204,7 +1219,7 @@ app.post("/api/prospects/:id/email", (req, res) => {
     source: escapeEmailHtml(sourceLabel || "page professionnelle publique")
   };
   const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f5f6f1;font-family:Arial,Helvetica,sans-serif;color:#152522;"><div style="max-width:620px;margin:0 auto;padding:28px 16px;"><div style="background:#ffffff;border:1px solid #dfe6df;border-radius:16px;overflow:hidden;"><div style="padding:22px 24px;border-bottom:1px solid #e6ece5;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="width:42px;height:42px;background:#152522;border-radius:11px;text-align:center;vertical-align:middle;color:#bbff6a;font-size:25px;font-weight:700;">F</td><td style="padding-left:12px;vertical-align:middle;"><strong style="font-size:17px;letter-spacing:.05em;">FÉWURA</strong><br><span style="font-size:9px;letter-spacing:.12em;color:#718078;">SYSTÈMES AUTOMATISÉS POUR TPE &amp; PME</span></td></tr></table></div><div style="padding:28px 24px;"><p style="margin:0 0 18px;">Bonjour,</p><p style="margin:0 0 16px;">Je me permets de vous contacter pour vous faire gagner du temps et de l’argent.${safe.location ? ` Votre entreprise est présentée comme active dans le domaine ${safe.location}` : ""}.</p><p style="margin:0 0 16px;"><strong>${safe.sender}</strong> aide les TPE et PME à étudier ${safe.offer}, à partir d’une tâche concrète et avec une validation humaine à chaque étape.</p><p style="margin:0 0 12px;">Quel sujet vous ferait gagner le plus de temps&nbsp;?</p><div style="padding:16px 18px;background:#f3f9e9;border-left:4px solid #bbff6a;border-radius:8px;line-height:1.8;"><strong>1.</strong> Répondre aux demandes et préparer les devis<br><strong>2.</strong> Organiser le planning et les interventions<br><strong>3.</strong> Relancer et suivre les clients<br><strong>4.</strong> Rechercher de nouveaux clients</div><p style="margin:20px 0;">Répondez simplement avec <strong>1, 2, 3 ou 4</strong>. Je vous enverrai un exemple adapté à votre activité, ou deux créneaux pour un échange de 15 minutes.</p><p style="margin:22px 0;"><a href="https://innovatechsoftware.eu" style="display:inline-block;background:#152522;color:#bbff6a;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Découvrir FÉWURA SYSTEMS →</a></p><p style="margin:0;">Bien cordialement,<br><strong>${safe.sender}</strong></p></div><div style="padding:16px 24px;background:#fafbf8;color:#718078;font-size:11px;line-height:1.6;">Source de la coordonnée : ${safe.source}.<br>Si vous ne souhaitez plus recevoir de message de prospection de notre part, répondez simplement « stop ».</div></div></div></body></html>`;
-  const logoCell = '<td style="width:62px;height:62px;vertical-align:middle;"><img src="https://innovatechsoftware.eu/fewura-logo.png" width="62" height="62" alt="FÉWURA SYSTEMS" style="display:block;width:62px;height:62px;border:0;border-radius:12px;"></td>';
+  const logoCell = '<td style="width:62px;height:62px;vertical-align:middle;"><img src="cid:fewura-logo" width="62" height="62" alt="FÉWURA SYSTEMS" style="display:block;width:62px;height:62px;border:0;border-radius:12px;"></td>';
   const htmlWithLogo = html.replace('<td style="width:42px;height:42px;background:#152522;border-radius:11px;text-align:center;vertical-align:middle;color:#bbff6a;font-size:25px;font-weight:700;">F</td>', logoCell);
   db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
     .run(id, "email_draft", `Brouillon créé : ${subject}`, now());
@@ -1225,7 +1240,9 @@ async function sendProspectEmail(id, options = {}) {
   const draft = await draftResponse.json();
   if (!draftResponse.ok) throw new Error(draft.error || "Message impossible à préparer.");
   const gmail = google.gmail({ version: "v1", auth: authorizedGmailClient() });
-  const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html }) } });
+  const logoPath = path.join(__dirname, "fewura-logo.png");
+  const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString("base64") : "";
+  const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html, logoBase64 }) } });
   db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
     .run(prospect.id, "email", `E-mail envoyé à ${prospect.email} : ${draft.subject}`, now());
   return { id: prospect.id, businessName: prospect.businessName, to: prospect.email, subject: draft.subject, messageId: sent.data.id || "" };

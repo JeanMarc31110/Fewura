@@ -517,22 +517,44 @@ class FewuraDesktop(tk.Tk):
     def validate_selected_emails(self):
         selected = self.selected_prospects()
         if not selected: return messagebox.showinfo("Validation des mails", "Sélectionnez au moins un prospect.")
+        self.choose_email_offer(selected)
+
+    def choose_email_offer(self, selected):
+        dialog = tk.Toplevel(self)
+        dialog.title("Choisir l’offre du mail")
+        dialog.geometry("510x190")
+        dialog.transient(self)
+        dialog.grab_set()
+        dialog.configure(bg=BG)
+        tk.Label(dialog, text="Offre mise en avant", bg=BG, fg=INK, font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(18, 8))
+        offer_var = tk.StringVar(value="l’automatisation de tâches répétitives pour les TPE et PME")
+        ttk.Combobox(dialog, textvariable=offer_var, state="readonly", width=58, values=("l’automatisation de tâches répétitives pour les TPE et PME", "la recherche de nouveaux clients", "la facture électronique")).pack(fill="x", padx=20)
+        actions = tk.Frame(dialog, bg=BG)
+        actions.pack(fill="x", padx=20, pady=18)
+        tk.Button(actions, text="Annuler", command=dialog.destroy, bg=CARD, fg=INK, relief="solid", bd=1, padx=12, pady=7).pack(side="right")
+        def start_validation():
+            offer = offer_var.get().strip()
+            dialog.destroy()
+            self._validate_selected_emails(selected, offer)
+        tk.Button(actions, text="Préparer les mails", command=start_validation, bg=ACCENT, fg="white", relief="flat", padx=12, pady=7).pack(side="right", padx=8)
+
+    def _validate_selected_emails(self, selected, offer):
         def validate():
             success, errors = [], []
             for prospect in selected:
                 try:
-                    draft = api_request(f"/api/prospects/{prospect['id']}/email", "POST", {"senderName": "Jean Marc", "offer": "l’automatisation de tâches répétitives pour les TPE et PME"})
+                    draft = api_request(f"/api/prospects/{prospect['id']}/email", "POST", {"senderName": "Jean Marc", "offer": offer})
                     success.append({"prospect": prospect, "draft": draft})
                 except ApiError as error:
                     errors.append({"prospect": prospect, "error": str(error)})
             return success, errors
         def show_result(result):
             success, errors = result
-            self.open_email_validation_dialog(selected, success, errors)
+            self.open_email_validation_dialog(selected, success, errors, offer)
             self.load_prospects()
         self.run_async(validate, show_result)
 
-    def open_email_validation_dialog(self, selected, success, errors):
+    def open_email_validation_dialog(self, selected, success, errors, offer):
         dialog = tk.Toplevel(self)
         dialog.title("Validation des mails")
         dialog.geometry("920x650")
@@ -541,7 +563,7 @@ class FewuraDesktop(tk.Tk):
         dialog.grab_set()
         dialog.configure(bg=BG)
         tk.Label(dialog, text="Validation des mails", bg=BG, fg=INK, font=("Segoe UI", 16, "bold")).pack(anchor="w", padx=20, pady=(18, 2))
-        tk.Label(dialog, text=f"{len(success)}/{len(selected)} brouillon(s) généré(s). Aucun e-mail n’a encore été envoyé.", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(0, 12))
+        tk.Label(dialog, text=f"{len(success)}/{len(selected)} brouillon(s) généré(s) · Offre : {offer}. Aucun e-mail n’a encore été envoyé.", bg=BG, fg=MUTED, font=("Segoe UI", 10)).pack(anchor="w", padx=20, pady=(0, 12))
         body = tk.Frame(dialog, bg=BG)
         body.pack(fill="both", expand=True, padx=20)
         left = tk.Frame(body, bg=CARD, highlightbackground=LINE, highlightthickness=1)
@@ -593,7 +615,7 @@ class FewuraDesktop(tk.Tk):
             if not ids: return messagebox.showinfo("Envoi des mails", "Aucun e-mail valide à envoyer.", parent=dialog)
             if not messagebox.askyesno("Confirmer l’envoi", f"Envoyer réellement {len(ids)} e-mail(s) ({label}) ?\n\nCette action créera une activité d’envoi dans le CRM.", parent=dialog): return
             dialog.destroy()
-            self.run_async(lambda: api_request("/api/prospects/bulk-send-email", "POST", {"ids": ids, "senderName": "Jean Marc", "offer": "l’automatisation de tâches répétitives pour les TPE et PME"}), lambda data: messagebox.showinfo("Envoi des mails", f"{data.get('sent', 0)}/{data.get('total', len(ids))} e-mail(s) envoyé(s)."))
+            self.run_async(lambda: api_request("/api/prospects/bulk-send-email", "POST", {"ids": ids, "senderName": "Jean Marc", "offer": offer}), lambda data: messagebox.showinfo("Envoi des mails", f"{data.get('sent', 0)}/{data.get('total', len(ids))} e-mail(s) envoyé(s)."))
         tk.Button(actions, text="Envoyer tous les e-mails", command=lambda: send(sendable_ids, "tous les prospects avec e-mail"), bg=ACCENT, fg="white", relief="flat", padx=14, pady=8).pack(side="right", padx=8)
         tk.Button(actions, text="Envoyer la sélection", command=lambda: send(selected_ids, "la sélection"), bg="#16a46a", fg="white", relief="flat", padx=14, pady=8).pack(side="right")
 
