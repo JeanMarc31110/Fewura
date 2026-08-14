@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FÉWURA · Agent de prospection & CRM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand"><img class="brand-logo" src="/fewura-logo.png" alt="Logo FÉWURA" /><span><strong>FÉWURA</strong><small>PROSPECTING OS</small></span></div>
+      <div class="topbar-status"><span class="status-dot"></span><span id="healthText">Vérification de la connexion…</span></div>
+    </header>
+    <main class="shell">
+      <section class="hero">
+        <div><p class="eyebrow">AGENT COMMERCIAL B2B</p><h1>Des prospects qualifiés.<br /><em>Un pipeline maîtrisé.</em></h1><p class="hero-copy">Choisissez une région et une profession. L’agent recherche des entreprises publiques, rassemble les coordonnées trouvées, puis prépare des messages que vous validez.</p></div>
+        <div class="hero-note"><span>01</span><p>Recherche<br /><strong>par critères précis</strong></p><span>02</span><p>Coordonnées<br /><strong>avec leur source</strong></p></div>
+      </section>
+      <section class="workspace-grid">
+        <aside class="panel search-panel">
+          <div class="panel-heading"><div><p class="eyebrow">LANCER UNE RECHERCHE</p><h2>Votre ciblage</h2></div><span class="spark">✦</span></div>
+          <form id="searchForm">
+            <label>Région<input id="region" name="region" placeholder="Ex. Île-de-France, Lyon…" required /></label>
+            <label>Profession ciblée<select id="professions" name="professions">
+              <option value="" selected disabled>Choisir une profession…</option>
+              <optgroup label="Artisans & commerces">
+                <option value="boulangerie pâtisserie artisanale">Boulangerie / pâtisserie</option>
+                <option value="traiteur">Traiteur</option>
+                <option value="boucherie charcuterie">Boucherie / charcuterie</option>
+                <option value="fleuriste">Fleuriste</option>
+                <option value="imprimeur">Imprimeur</option>
+                <option value="atelier sur mesure">Atelier sur mesure</option>
+              </optgroup>
+              <optgroup label="Bâtiment & maintenance">
+                <option value="plomberie">Plomberie</option>
+                <option value="électricité bâtiment">Électricité</option>
+                <option value="chauffage climatisation">Chauffage / climatisation</option>
+                <option value="menuiserie">Menuiserie</option>
+                <option value="couverture toiture">Couverture / toiture</option>
+                <option value="entreprise de rénovation">Rénovation</option>
+                <option value="garage automobile carrosserie">Garage / carrosserie</option>
+              </optgroup>
+              <optgroup label="Services professionnels">
+                <option value="cabinet comptable">Cabinet comptable</option>
+                <option value="agence immobilière">Agence immobilière</option>
+                <option value="courtier en assurance">Courtier en assurance</option>
+                <option value="cabinet de recrutement">Cabinet de recrutement</option>
+                <option value="agence de communication">Agence de communication</option>
+                <option value="consultant entreprise">Consultant</option>
+              </optgroup>
+              <optgroup label="Commerce & distribution">
+                <option value="grossiste">Grossiste</option>
+                <option value="distributeur local">Distributeur local</option>
+                <option value="commerce avec livraison">Commerce avec livraison</option>
+              </optgroup>
+            </select></label>
+            <label>Ou saisir un corps de métier<input id="customProfession" name="customProfession" type="text" placeholder="Ex. plombier chauffagiste, serrurier…" autocomplete="off" /></label>
+            <label>Nombre de résultats<select id="count"><option value="5">5 entreprises</option><option value="10" selected>10 entreprises</option><option value="20">20 entreprises</option></select></label>
+            <button class="button primary" type="submit"><span>Rechercher avec Brave</span><span>↗</span></button>
+          </form>
+          <div class="guardrail"><span>◌</span><p><strong>Recherche responsable</strong><br />Uniquement des informations professionnelles accessibles publiquement. Vérifiez les coordonnées et le cadre applicable avant tout contact.</p></div>
+        </aside>
+        <section class="panel results-panel">
+          <div class="panel-heading"><div><p class="eyebrow">RÉSULTATS DE L’AGENT</p><h2 id="resultsTitle">En attente de ciblage</h2><p id="searchSources" class="muted"></p></div><span class="result-count" id="resultCount">0</span></div>
+          <div id="searchMessage" class="empty-state"><div class="empty-icon">⌁</div><h3>Votre prochaine liste de prospects commence ici.</h3><p>Les entreprises trouvées apparaîtront avec leur site source, e-mail et téléphone lorsqu’ils sont détectés.</p></div>
+          <div id="resultsList" class="result-list hidden"></div>
+        </section>
+      </section>
+      <section class="crm-section">
+        <div class="section-heading"><div><p class="eyebrow">CRM COMMERCIAL</p><h2>Votre espace de vente</h2><p class="section-subtitle">Centralisez les contacts, les relances, les opportunités et l’historique de chaque entreprise.</p></div><div class="crm-tools"><button class="button ghost" id="exportButton">↓ Exporter</button><button class="button ghost" id="refreshButton">↻ Actualiser</button><span id="crmCount" class="muted">0 prospect</span></div></div>
+        <div class="crm-stats"><article class="stat-card"><span class="stat-label">Portefeuille actif</span><strong id="statTotal">0</strong><small>prospects hors exclus</small></article><article class="stat-card"><span class="stat-label">Opportunités ouvertes</span><strong id="statQualified">0</strong><small>dans le pipeline commercial</small></article><article class="stat-card warning"><span class="stat-label">Relances en retard</span><strong id="statOverdue">0</strong><small>actions à traiter</small></article><article class="stat-card"><span class="stat-label">Valeur ouverte</span><strong id="statOpenValue">0 €</strong><small>opportunités renseignées</small></article><article class="stat-card success"><span class="stat-label">Gagné</span><strong id="statWonValue">0 €</strong><small>valeur signée</small></article></div>
+        <div class="crm-toolbar"><label class="toolbar-search"><span>⌕</span><input id="crmSearch" placeholder="Rechercher une entreprise, un email, un téléphone…" /></label><select id="crmStageFilter"><option value="">Toutes les étapes</option></select><select id="crmPriorityFilter"><option value="">Toutes les priorités</option><option value="high">Haute priorité</option><option value="normal">Priorité normale</option><option value="low">Basse priorité</option></select><label class="overdue-filter"><input type="checkbox" id="crmOverdueFilter" /> À relancer</label><button class="button ghost" id="resetCrmFilters">Réinitialiser</button></div>
+        <div class="bulk-toolbar"><label class="bulk-select-all"><input type="checkbox" id="selectAllProspects" /> Tout sélectionner</label><select id="bulkGroupSelect" aria-label="Groupe à sélectionner"><option value="">Sélectionner un groupe…</option></select><button class="button ghost compact" id="selectGroupButton" type="button">Sélectionner le groupe</button><button class="button ghost compact" id="selectVisibleButton" type="button">Sélectionner la vue</button><button class="button ghost compact" id="clearSelectionButton" type="button">Désélectionner</button><span id="selectionCount" class="muted">0 sélectionné</span><button class="button bulk-email-button compact" id="bulkEmailButton" type="button" disabled>✉ Valider les mails</button><button class="button danger compact" id="bulkDeleteButton" type="button" disabled>⌫ Effacer</button></div>
+        <div id="pipeline" class="pipeline"></div>
+      </section>
+    </main>
+    <dialog id="prospectDialog" class="prospect-dialog"><div class="dialog-card prospect-dialog-card"><button class="dialog-close" id="closeProspectDialog" type="button">×</button><div class="prospect-detail-head"><div><p class="eyebrow">FICHE PROSPECT</p><h2 id="prospectDialogTitle">Prospect</h2><p id="prospectDialogSubtitle" class="muted"></p></div><span id="prospectFitBadge" class="fit-badge">Compatible FÉWURA</span></div><div class="prospect-detail-grid"><section class="detail-main"><div class="detail-contact-grid"><div><span class="detail-label">Email</span><a id="detailEmail" class="detail-value" href="#"></a></div><div><span class="detail-label">Téléphone</span><a id="detailPhone" class="detail-value" href="#"></a></div><div><span class="detail-label">Site web</span><a id="detailWebsite" class="detail-value" href="#" target="_blank" rel="noreferrer"></a></div><div><span class="detail-label">Adresse</span><span id="detailAddress" class="detail-value"></span></div></div><div class="detail-section"><div class="detail-section-heading"><h3>Suivi commercial</h3><span id="detailLastContact" class="muted"></span></div><div class="detail-form-grid"><label>Étape<select id="detailStage"></select></label><label>Priorité<select id="detailPriority"><option value="high">Haute</option><option value="normal">Normale</option><option value="low">Basse</option></select></label><label>Valeur estimée (€)<input id="detailDealValue" type="number" min="0" step="100" /></label><label>Prochaine action<input id="detailNextAction" placeholder="Ex. Appeler pour qualifier le besoin" /></label><label>Date de relance<input id="detailNextActionAt" type="date" /></label></div><label>Notes internes<textarea id="detailNotes" rows="4" placeholder="Contexte, besoin, objections, prochaine étape…"></textarea></label><div class="detail-actions"><button class="button primary compact" id="saveProspectDetail" type="button">Enregistrer la fiche</button><button class="button ghost compact" id="detailEmailButton" type="button">✉ Préparer un email</button></div></div><div class="detail-section"><div class="detail-section-heading"><h3>Historique</h3><span class="muted">Actions et interactions</span></div><div id="activityList" class="activity-list"></div><div class="activity-compose"><select id="activityType"><option value="note">Note</option><option value="call">Appel</option><option value="email">Email envoyé</option><option value="meeting">Rendez-vous</option><option value="task">Tâche</option></select><textarea id="activityContent" rows="2" placeholder="Ajouter une note ou consigner une action…"></textarea><button class="button ghost compact" id="addActivity" type="button">Ajouter à l’historique</button></div></div></section><aside class="detail-side"><div class="side-card"><span class="detail-label">Adéquation FÉWURA</span><strong id="detailFitScore">0</strong><p id="detailFitReasons" class="muted"></p></div><div class="side-card"><span class="detail-label">Coordonnées trouvées</span><p id="detailAllContacts" class="muted"></p></div><div class="side-card"><span class="detail-label">Source</span><a id="detailSource" class="source-link" href="#" target="_blank" rel="noreferrer"></a></div><label class="optout-toggle"><input id="detailOptOut" type="checkbox" /> Ne plus contacter</label></aside></div></div></dialog>
+    <dialog id="emailDialog" class="email-dialog"><form method="dialog" class="dialog-card"><button class="dialog-close" value="cancel">×</button><p class="eyebrow">BROUILLON COMMERCIAL</p><h2 id="emailTitle">Message à valider</h2><label>Votre signature<input id="senderName" value="Jean Marc" /></label><label>Offre mise en avant<select id="offer"><option value="la recherche de nouveaux clients">La recherche de nouveaux clients</option><option value="l’automatisation de tâches répétitives pour les TPE et PME" selected>L’automatisation de tâches répétitives pour les TPE et PME</option></select></label><div class="email-preview"><div class="email-subject"><span>OBJET</span><strong id="emailSubject"></strong></div><div id="emailHtmlPreview" class="email-html-preview"></div><details><summary>Voir la version texte</summary><pre id="emailBody"></pre></details></div><p id="emailDisclaimer" class="dialog-note"></p><p class="dialog-note gmail-help">Pour créer un vrai brouillon Gmail avec logo et liens cliquables, utilisez le bouton de création Gmail. La copie sert au corps du message.</p><div class="dialog-actions"><button class="button ghost" value="cancel">Fermer</button><button type="button" class="button primary" id="createGmailDraft">Créer le brouillon Gmail</button><button type="button" class="button ghost" id="openGmail">Ouvrir Gmail prérempli</button><button type="button" class="button ghost" id="copyEmail">Copier le corps HTML</button></div></form></dialog>
+    <dialog id="bulkEmailDialog" class="email-dialog"><form method="dialog" class="dialog-card"><button class="dialog-close" value="cancel">×</button><p class="eyebrow">VALIDATION DES MAILS</p><h2>Résultat de la validation</h2><p id="bulkEmailSummary" class="section-subtitle"></p><div id="bulkEmailResults" class="bulk-results"></div><div class="dialog-actions"><button class="button primary compact" value="cancel">Fermer</button></div></form></dialog>
+    <div id="toast" class="toast"></div>
+    <script src="/app.js" defer></script>
+  </body>
+</html>

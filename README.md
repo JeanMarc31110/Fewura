@@ -1,21 +1,33 @@
-# Fewura
+# FÉWURA CRM
 
-Fewura est un CRM Windows fourni ici sous forme d'exécutable. Ce dépôt contient le binaire "FÉWURA CRM.exe" ainsi que les fichiers de configuration et la documentation.
+CRM commercial Windows avec gestion des prospects et prospection.
 
-Installation
+## Version publiée
 
-1. Télécharger ou cloner ce dépôt.
-2. Exécuter "FÉWURA CRM.exe" directement sous Windows (double-clic).
+Le fichier [`FÉWURA CRM.exe`](./FÉWURA%20CRM.exe) contient l’interface native mise à jour :
 
-Usage
+- sélection multiple des entreprises ;
+- sélection de tout le tableau ou d’un groupe ;
+- suppression individuelle ou groupée ;
+- validation groupée des e-mails ;
+- prospection avec l’option **Toutes les activités** ;
+- identité visuelle FÉWURA actualisée.
 
-- Placer le fichier exécutable dans le dossier souhaité.
-- Créer un raccourci si vous le souhaitez.
+## Code source
 
-Remarques
+Le code de l’application se trouve dans [`app/`](./app/). Pour lancer la partie serveur :
 
-- Les exécutables binaires sont versionnés ici par commodité. Pour éviter de stocker des binaires volumineux, envisagez d'utiliser les Releases GitHub ou un storage externe.
+```powershell
+cd app
+npm install
+node server.js
+```
 
-Licence
+La configuration est à fournir dans `app/.env` à partir de `app/.env.example`. Les secrets et les données locales ne sont pas versionnés.
 
-Indiquez ici la licence du projet ou contactez l'auteur pour plus de détails.
+## Vérifications
+
+- `node --check app/server.js`
+- `python -m py_compile app/desktop_app.py`
+- test API de validation de prospection avec activité vide et avec **Toutes les activités**
+- test API des actions groupées de prospects
