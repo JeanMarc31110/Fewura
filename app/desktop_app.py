@@ -1,4 +1,5 @@
 import json
+import os
 import threading
 import urllib.error
 import urllib.parse
@@ -527,8 +528,8 @@ class FewuraDesktop(tk.Tk):
         dialog.grab_set()
         dialog.configure(bg=BG)
         tk.Label(dialog, text="Offre mise en avant", bg=BG, fg=INK, font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(18, 8))
-        offer_var = tk.StringVar(value="l’automatisation de tâches répétitives pour les TPE et PME")
-        ttk.Combobox(dialog, textvariable=offer_var, state="readonly", width=58, values=("l’automatisation de tâches répétitives pour les TPE et PME", "la recherche de nouveaux clients", "la facture électronique")).pack(fill="x", padx=20)
+        offer_var = tk.StringVar(value="la facturation électronique, module d’agent IA")
+        ttk.Combobox(dialog, textvariable=offer_var, state="readonly", width=58, values=("la facturation électronique, module d’agent IA", "l’automatisation de tâches répétitives pour les TPE et PME", "la recherche de nouveaux clients")).pack(fill="x", padx=20)
         actions = tk.Frame(dialog, bg=BG)
         actions.pack(fill="x", padx=20, pady=18)
         tk.Button(actions, text="Annuler", command=dialog.destroy, bg=CARD, fg=INK, relief="solid", bd=1, padx=12, pady=7).pack(side="right")
@@ -583,7 +584,14 @@ class FewuraDesktop(tk.Tk):
             listbox.insert("end", f"! {item['prospect'].get('business_name', '')}")
         preview_frame = tk.Frame(body, bg=CARD, highlightbackground=LINE, highlightthickness=1)
         preview_frame.pack(side="left", fill="both", expand=True)
-        tk.Label(preview_frame, text="Aperçu du mail", bg=CARD, fg=INK, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=14, pady=(12, 6))
+        tk.Label(preview_frame, text="Aperçu du mail · Logo FÉWURA intégré", bg=CARD, fg=INK, font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=14, pady=(12, 6))
+        try:
+            logo_path = os.path.join(os.path.dirname(__file__), "fewura-logo.png")
+            dialog.logo_photo = tk.PhotoImage(file=logo_path)
+            dialog.logo_photo = dialog.logo_photo.subsample(max(1, dialog.logo_photo.width() // 62), max(1, dialog.logo_photo.height() // 62))
+            tk.Label(preview_frame, image=dialog.logo_photo, bg=CARD).pack(anchor="w", padx=14, pady=(0, 6))
+        except (tk.TclError, OSError):
+            pass
         preview = tk.Text(preview_frame, wrap="word", font=("Segoe UI", 10), bg="#ffffff", fg=INK, relief="flat", padx=14, pady=10)
         preview.pack(side="left", fill="both", expand=True, padx=(12, 0), pady=(0, 12))
         preview_scroll = ttk.Scrollbar(preview_frame, orient="vertical", command=preview.yview)
@@ -598,7 +606,12 @@ class FewuraDesktop(tk.Tk):
                 content = errors[position - len(items)]["error"]
             else:
                 prospect, draft = items[position]
-                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\n\n{draft.get('body', '')}"
+                phone = prospect.get("phone", "") or "Non renseigné"
+                phone_digits = "".join(char for char in phone if char.isdigit())
+                whatsapp = f"https://wa.me/{'33' + phone_digits[1:] if phone_digits.startswith('0') and len(phone_digits) == 10 else phone_digits}" if len(phone_digits) >= 8 else "Non disponible"
+                source = prospect.get("source") if isinstance(prospect.get("source"), dict) else {}
+                site = prospect.get("website", "") or source.get("url", "") or "Non renseigné"
+                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\nTéléphone : {phone}\nAppel WhatsApp : {whatsapp}\nSite cliquable : {site}\n\n{draft.get('body', '')}"
             preview.configure(state="normal")
             preview.delete("1.0", "end")
             preview.insert("1.0", content)
