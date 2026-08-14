@@ -4,3 +4,7 @@ data/*.db
 data/*.db-shm
 data/*.db-wal
 data/gmail-token.json
+build/
+dist/
+*.spec
+__pycache__/
