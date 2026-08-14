@@ -1188,8 +1188,12 @@ app.post("/api/prospects/:id/gmail-draft", async (req, res) => {
     const logoPath = path.join(__dirname, "fewura-logo.png");
     const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString("base64") : "";
     const created = await gmail.users.drafts.create({ userId: "me", requestBody: { message: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html, logoBase64 }) } } });
-    db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
-      .run(id, "gmail_draft", `Brouillon Gmail créé pour ${prospect.email} : ${draft.subject}`, now());
+    try {
+      db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
+        .run(id, "gmail_draft", `Brouillon Gmail créé pour ${prospect.email} : ${draft.subject}`, now());
+    } catch (activityError) {
+      console.warn(`Historique non enregistré : ${activityError.message}`);
+    }
     res.status(201).json({ draftId: created.data.id, messageId: created.data.message?.id || "", to: prospect.email, subject: draft.subject, account: gmailConfig().account });
   } catch (error) {
     res.status(502).json({ error: `Création du brouillon Gmail impossible : ${error.message}` });
@@ -1239,8 +1243,12 @@ app.post("/api/prospects/:id/email", (req, res) => {
   const finalHtml = promotionHtml ? html.replace('<p style="margin:0 0 12px;">', `${promotionHtml}<p style="margin:0 0 12px;">`) : html;
   const logoCell = '<td style="width:62px;height:62px;vertical-align:middle;"><img src="cid:fewura-logo" width="62" height="62" alt="FÉWURA SYSTEMS" style="display:block;width:62px;height:62px;border:0;border-radius:12px;"></td>';
   const htmlWithLogo = finalHtml.replace('<td style="width:42px;height:42px;background:#152522;border-radius:11px;text-align:center;vertical-align:middle;color:#bbff6a;font-size:25px;font-weight:700;">F</td>', logoCell);
-  db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
-    .run(id, "email_draft", `Brouillon créé : ${subject}`, now());
+  try {
+    db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
+      .run(id, "email_draft", `Brouillon créé : ${subject}`, now());
+  } catch (activityError) {
+    console.warn(`Historique non enregistré : ${activityError.message}`);
+  }
   res.json({ subject, body: finalBody, html: htmlWithLogo, disclaimer: "Brouillon commercial généré à partir des informations publiques enregistrées. Vérifiez les faits, la source et les règles applicables avant tout envoi." });
 });
 
@@ -1261,8 +1269,12 @@ async function sendProspectEmail(id, options = {}) {
   const logoPath = path.join(__dirname, "fewura-logo.png");
   const logoBase64 = fs.existsSync(logoPath) ? fs.readFileSync(logoPath).toString("base64") : "";
   const sent = await gmail.users.messages.send({ userId: "me", requestBody: { raw: buildGmailRawMessage({ to: prospect.email, subject: draft.subject, body: draft.body, html: draft.html, logoBase64 }) } });
-  db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
-    .run(prospect.id, "email", `E-mail envoyé à ${prospect.email} : ${draft.subject}`, now());
+  try {
+    db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")
+      .run(prospect.id, "email", `E-mail envoyé à ${prospect.email} : ${draft.subject}`, now());
+  } catch (activityError) {
+    console.warn(`Historique non enregistré : ${activityError.message}`);
+  }
   return { id: prospect.id, businessName: prospect.businessName, to: prospect.email, subject: draft.subject, messageId: sent.data.id || "" };
 }
 
