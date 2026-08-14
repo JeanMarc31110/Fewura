@@ -528,8 +528,8 @@ class FewuraDesktop(tk.Tk):
         dialog.grab_set()
         dialog.configure(bg=BG)
         tk.Label(dialog, text="Offre mise en avant", bg=BG, fg=INK, font=("Segoe UI", 13, "bold")).pack(anchor="w", padx=20, pady=(18, 8))
-        offer_var = tk.StringVar(value="la facturation électronique, module d’agent IA")
-        ttk.Combobox(dialog, textvariable=offer_var, state="readonly", width=58, values=("la facturation électronique, module d’agent IA", "l’automatisation de tâches répétitives pour les TPE et PME", "la recherche de nouveaux clients")).pack(fill="x", padx=20)
+        offer_var = tk.StringVar(value="toutes les offres FÉWURA")
+        ttk.Combobox(dialog, textvariable=offer_var, state="readonly", width=58, values=("toutes les offres FÉWURA",)).pack(fill="x", padx=20)
         actions = tk.Frame(dialog, bg=BG)
         actions.pack(fill="x", padx=20, pady=18)
         tk.Button(actions, text="Annuler", command=dialog.destroy, bg=CARD, fg=INK, relief="solid", bd=1, padx=12, pady=7).pack(side="right")
@@ -609,9 +609,7 @@ class FewuraDesktop(tk.Tk):
                 phone = prospect.get("phone", "") or "Non renseigné"
                 phone_digits = "".join(char for char in phone if char.isdigit())
                 whatsapp = f"https://wa.me/{'33' + phone_digits[1:] if phone_digits.startswith('0') and len(phone_digits) == 10 else phone_digits}" if len(phone_digits) >= 8 else "Non disponible"
-                source = prospect.get("source") if isinstance(prospect.get("source"), dict) else {}
-                site = prospect.get("website", "") or source.get("url", "") or "Non renseigné"
-                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\nTéléphone : {phone}\nAppel WhatsApp : {whatsapp}\nSite cliquable : {site}\n\n{draft.get('body', '')}"
+                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\nTéléphone : {phone}\nWhatsApp : {phone} — {whatsapp}\n\n{draft.get('body', '')}"
             preview.configure(state="normal")
             preview.delete("1.0", "end")
             preview.insert("1.0", content)
