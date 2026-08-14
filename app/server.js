@@ -1206,7 +1206,7 @@ app.post("/api/prospects/:id/email", (req, res) => {
   if (!prospect) return res.status(404).json({ error: "Prospect introuvable." });
   if (prospect.optOut || prospect.stage === "excluded") return res.status(400).json({ error: "Ce prospect est exclu des contacts commerciaux." });
   const sender = clean(req.body.senderName, 100) || "Jean Marc";
-  const offer = "la facturation électronique, module d’agent IA ; l’automatisation des tâches répétitives ; la recherche de nouveaux clients";
+  const offer = "Facturation électronique — module d’agent IA\nAutomatisation des tâches répétitives\nRecherche de nouveaux clients";
   const location = [prospect.profession, prospect.region].filter(Boolean).join(" à ");
   const profession = prospect.profession.toLowerCase();
   const professionWithArticle = profession ? `${/^[aeiouyàâäéèêëîïôöùûüœ]/i.test(profession) ? "d’" : "de "}${profession}` : "";
@@ -1214,10 +1214,9 @@ app.post("/api/prospects/:id/email", (req, res) => {
   const sourceUrl = prospect.source.url || prospect.website || "";
   let sourceLabel = sourceUrl;
   try { sourceLabel = new URL(sourceUrl).hostname; } catch {}
-  const phone = clean(prospect.phone, 80);
-  const phoneDigits = phone.replace(/\D/g, "");
-  const whatsappDigits = phoneDigits.startsWith("0") && phoneDigits.length === 10 ? `33${phoneDigits.slice(1)}` : phoneDigits;
-  const whatsappUrl = whatsappDigits.length >= 8 ? `https://wa.me/${whatsappDigits}` : "";
+  const phone = "+33773547857";
+  const phoneDigits = "33773547857";
+  const whatsappUrl = "https://wa.me/33773547857";
   const safeSourceUrl = /^https?:\/\//i.test(sourceUrl) ? sourceUrl : "";
   const normalizedOffer = normalizedText(offer);
   const isElectronicInvoiceOffer = normalizedOffer.includes("factur") && normalizedOffer.includes("electronique");
@@ -1238,10 +1237,12 @@ app.post("/api/prospects/:id/email", (req, res) => {
     phoneHref: escapeEmailHtml(phoneDigits ? `tel:${phoneDigits}` : ""),
     whatsappUrl: escapeEmailHtml(whatsappUrl)
   };
-  const contactLinks = `${safe.phone ? `<br><strong>Téléphone :</strong> <a href="${safe.phoneHref}" style="color:#1b65d6;">${safe.phone}</a>` : ""}${safe.whatsappUrl ? `<br><strong>WhatsApp :</strong> <a href="${safe.whatsappUrl}" style="color:#168c4b;font-weight:700;">${safe.phone}</a>` : ""}`;
+  safe.offerHtml = safe.offer.replace(/\n/g, "<br>");
+  const contactLinks = `<br><strong>Téléphone :</strong> <a href="${safe.phoneHref}" style="color:#1b65d6;">${safe.phone}</a><br><strong>WhatsApp :</strong> <a href="${safe.whatsappUrl}" style="color:#168c4b;font-weight:700;">${safe.phone}</a><br><strong>Site :</strong> <a href="https://innovatechsoftware.eu" style="color:#1b65d6;">innovatechsoftware.eu</a>`;
   const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f5f6f1;font-family:Arial,Helvetica,sans-serif;color:#152522;"><div style="max-width:620px;margin:0 auto;padding:28px 16px;"><div style="background:#ffffff;border:1px solid #dfe6df;border-radius:16px;overflow:hidden;"><div style="padding:22px 24px;border-bottom:1px solid #e6ece5;"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="width:42px;height:42px;background:#152522;border-radius:11px;text-align:center;vertical-align:middle;color:#bbff6a;font-size:25px;font-weight:700;">F</td><td style="padding-left:12px;vertical-align:middle;"><strong style="font-size:17px;letter-spacing:.05em;">FÉWURA</strong><br><span style="font-size:9px;letter-spacing:.12em;color:#718078;">SYSTÈMES AUTOMATISÉS POUR TPE &amp; PME</span></td></tr></table></div><div style="padding:28px 24px;"><p style="margin:0 0 18px;">Bonjour,</p><p style="margin:0 0 16px;">Je me permets de vous contacter pour vous faire gagner du temps et de l’argent.${safe.location ? ` Votre entreprise est présentée comme active dans le domaine ${safe.location}` : ""}.</p><p style="margin:0 0 16px;"><strong>${safe.sender}</strong> aide les TPE et PME à étudier ${safe.offer}, à partir d’une tâche concrète et avec une validation humaine à chaque étape.</p><p style="margin:0 0 12px;">Quel sujet vous ferait gagner le plus de temps&nbsp;?</p><div style="padding:16px 18px;background:#f3f9e9;border-left:4px solid #bbff6a;border-radius:8px;line-height:1.8;"><strong>1.</strong> Répondre aux demandes et préparer les devis<br><strong>2.</strong> Organiser le planning et les interventions<br><strong>3.</strong> Relancer et suivre les clients<br><strong>4.</strong> Rechercher de nouveaux clients</div><p style="margin:20px 0;">Répondez simplement avec <strong>1, 2, 3 ou 4</strong>. Je vous enverrai un exemple adapté à votre activité, ou deux créneaux pour un échange de 15 minutes.</p><p style="margin:22px 0;"><a href="https://innovatechsoftware.eu" style="display:inline-block;background:#152522;color:#bbff6a;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:700;">Découvrir FÉWURA SYSTEMS →</a></p><p style="margin:0 0 16px;">Bien cordialement,<br><strong>${safe.sender}</strong></p><p style="padding:12px 14px;background:#f7f9ff;border-radius:8px;font-size:13px;line-height:1.7;margin:0;">${contactLinks.slice(4)}</p></div><div style="padding:16px 24px;background:#fafbf8;color:#718078;font-size:11px;line-height:1.6;">Source de la coordonnée : ${safe.source}.<br>Si vous ne souhaitez plus recevoir de message de prospection de notre part, répondez simplement « stop ».</div></div></div></body></html>`;
-  const finalHtml = promotionHtml ? html.replace('<p style="margin:0 0 12px;">', `${promotionHtml}<p style="margin:0 0 12px;">`) : html;
-  const logoCell = '<td style="width:62px;height:62px;vertical-align:middle;"><img src="cid:fewura-logo" width="62" height="62" alt="FÉWURA SYSTEMS" style="display:block;width:62px;height:62px;border:0;border-radius:12px;"></td>';
+  const htmlWithOfferList = html.replace(safe.offer, safe.offerHtml);
+  const finalHtml = promotionHtml ? htmlWithOfferList.replace('<p style="margin:0 0 12px;">', `${promotionHtml}<p style="margin:0 0 12px;">`) : htmlWithOfferList;
+  const logoCell = '<td style="width:140px;height:140px;vertical-align:middle;"><img src="cid:fewura-logo" width="140" height="140" alt="FÉWURA SYSTEMS" style="display:block;width:140px;height:140px;border:0;border-radius:12px;"></td>';
   const htmlWithLogo = finalHtml.replace('<td style="width:42px;height:42px;background:#152522;border-radius:11px;text-align:center;vertical-align:middle;color:#bbff6a;font-size:25px;font-weight:700;">F</td>', logoCell);
   try {
     db.prepare("INSERT INTO activities (prospect_id, type, content, created_at) VALUES (?, ?, ?, ?)")

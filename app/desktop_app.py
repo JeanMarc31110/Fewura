@@ -588,7 +588,7 @@ class FewuraDesktop(tk.Tk):
         try:
             logo_path = os.path.join(os.path.dirname(__file__), "fewura-logo.png")
             dialog.logo_photo = tk.PhotoImage(file=logo_path)
-            dialog.logo_photo = dialog.logo_photo.subsample(max(1, dialog.logo_photo.width() // 62), max(1, dialog.logo_photo.height() // 62))
+            dialog.logo_photo = dialog.logo_photo.subsample(max(1, dialog.logo_photo.width() // 140), max(1, dialog.logo_photo.height() // 140))
             tk.Label(preview_frame, image=dialog.logo_photo, bg=CARD).pack(anchor="w", padx=14, pady=(0, 6))
         except (tk.TclError, OSError):
             pass
@@ -606,10 +606,9 @@ class FewuraDesktop(tk.Tk):
                 content = errors[position - len(items)]["error"]
             else:
                 prospect, draft = items[position]
-                phone = prospect.get("phone", "") or "Non renseigné"
-                phone_digits = "".join(char for char in phone if char.isdigit())
-                whatsapp = f"https://wa.me/{'33' + phone_digits[1:] if phone_digits.startswith('0') and len(phone_digits) == 10 else phone_digits}" if len(phone_digits) >= 8 else "Non disponible"
-                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\nTéléphone : {phone}\nWhatsApp : {phone} — {whatsapp}\n\n{draft.get('body', '')}"
+                phone = "+33773547857"
+                whatsapp = "https://wa.me/33773547857"
+                content = f"À : {prospect.get('email', 'E-mail non renseigné')}\nObjet : {draft.get('subject', '')}\nTéléphone : {phone}\nWhatsApp : {phone} — {whatsapp}\nSite : https://innovatechsoftware.eu\n\n{draft.get('body', '')}"
             preview.configure(state="normal")
             preview.delete("1.0", "end")
             preview.insert("1.0", content)
