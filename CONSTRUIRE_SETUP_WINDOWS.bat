@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title Build FEWURA PROSPECT 1.0.2
+title Build FEWURA PROSPECT 1.0.3
 cd /d "%~dp0"
 
 where py >nul 2>nul && (set PY=py) || (set PY=python)
@@ -16,8 +16,8 @@ findstr /C:"log_config=None" prospect_launcher.py >nul || (
   pause
   exit /b 1
 )
-findstr /C:"1.0.2" app\main.py >nul || (
-  echo ERREUR: app\main.py local n'est pas en version 1.0.2. Lancez git pull.
+findstr /C:"1.0.3" app\main.py >nul || (
+  echo ERREUR: app\main.py local n'est pas en version 1.0.3. Lancez git pull.
   pause
   exit /b 1
 )
@@ -52,7 +52,6 @@ if not defined ISCC if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "IS
 if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
 if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if not defined ISCC if defined ChocolateyInstall if exist "%ChocolateyInstall%\bin\ISCC.exe" set "ISCC=%ChocolateyInstall%\bin\ISCC.exe"
-
 if not defined ISCC if defined ChocolateyInstall (
   for /r "%ChocolateyInstall%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
 )
@@ -65,7 +64,6 @@ if not defined ISCC if defined ProgramFiles(x86) (
 if not defined ISCC if exist "%LOCALAPPDATA%" (
   for /r "%LOCALAPPDATA%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
 )
-
 if not defined ISCC (
   echo Inno Setup 6 est installe mais ISCC.exe reste introuvable.
   goto :error
@@ -74,15 +72,15 @@ if not defined ISCC (
 echo Inno Setup: !ISCC!
 "!ISCC!" installer\FEWURA_Prospect.iss || goto :error
 
-if not exist "installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe" (
-  echo ERREUR: le Setup 1.0.2 attendu n'a pas ete cree.
+if not exist "installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe" (
+  echo ERREUR: le Setup 1.0.3 attendu n'a pas ete cree.
   goto :error
 )
 
 echo.
 echo ========================================
 echo BUILD + EXE SMOKE TEST + SETUP : OK
-echo installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe
+echo installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe
 echo ========================================
 pause
 exit /b 0
