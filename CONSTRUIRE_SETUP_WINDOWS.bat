@@ -1,5 +1,5 @@
 @echo off
-setlocal EnableExtensions
+setlocal EnableExtensions EnableDelayedExpansion
 title Build FEWURA PROSPECT 1.0.2
 cd /d "%~dp0"
 
@@ -46,17 +46,33 @@ if errorlevel 1 (
   goto :error
 )
 
-set ISCC=
-if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
-if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
-if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
-if not defined ISCC (
-  for /r "%LOCALAPPDATA%\Programs" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
-)
-if not defined ISCC (echo Inno Setup 6 requis ou introuvable.& pause & exit /b 2)
+set "ISCC="
+for /f "delims=" %%I in ('where ISCC.exe 2^>nul') do if not defined ISCC set "ISCC=%%I"
+if not defined ISCC if exist "%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles(x86)%\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "%ProgramFiles%\Inno Setup 6\ISCC.exe" set "ISCC=%ProgramFiles%\Inno Setup 6\ISCC.exe"
+if not defined ISCC if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
+if not defined ISCC if defined ChocolateyInstall if exist "%ChocolateyInstall%\bin\ISCC.exe" set "ISCC=%ChocolateyInstall%\bin\ISCC.exe"
 
-echo Inno Setup: %ISCC%
-"%ISCC%" installer\FEWURA_Prospect.iss || goto :error
+if not defined ISCC if defined ChocolateyInstall (
+  for /r "%ChocolateyInstall%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
+)
+if not defined ISCC (
+  for /r "%ProgramFiles%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
+)
+if not defined ISCC if defined ProgramFiles(x86) (
+  for /r "%ProgramFiles(x86)%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
+)
+if not defined ISCC if exist "%LOCALAPPDATA%" (
+  for /r "%LOCALAPPDATA%" %%I in (ISCC.exe) do if not defined ISCC set "ISCC=%%I"
+)
+
+if not defined ISCC (
+  echo Inno Setup 6 est installe mais ISCC.exe reste introuvable.
+  goto :error
+)
+
+echo Inno Setup: !ISCC!
+"!ISCC!" installer\FEWURA_Prospect.iss || goto :error
 
 if not exist "installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe" (
   echo ERREUR: le Setup 1.0.2 attendu n'a pas ete cree.
