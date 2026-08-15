@@ -1,4 +1,4 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FEWURA PROSPECT</title><link rel="stylesheet" href="/static/style.css"></head><body><header><div><h1>FEWURA PROSPECT</h1><p>Prospection B2B géolocalisée — coordonnées professionnelles publiques</p></div><div><div class="badge">Envoi réel : {{ 'ACTIF' if live_enabled else 'DÉSACTIVÉ' }}</div><button id="quitFewura" type="button" style="margin-top:8px">Quitter Fewura</button></div></header><main>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FEWURA PROSPECT</title><link rel="stylesheet" href="/static/style.css"></head><body><header><div><h1>FEWURA PROSPECT</h1><p>Prospection B2B géolocalisée — coordonnées professionnelles publiques</p></div><div class="header-actions"><div class="badge">Envoi réel : {{ 'ACTIF' if live_enabled else 'DÉSACTIVÉ' }}</div><button type="button" class="danger" id="quit-app">Quitter Fewura</button></div></header><main>
 <section class="stats"><article><b>{{stats.prospects}}</b><span>Prospects</span></article><article><b>{{stats.emails}}</b><span>Emails pro</span></article><article><b>{{stats.sent}}</b><span>Envoyés</span></article><article><b>{{stats.simulated}}</b><span>Simulés</span></article></section>
 <section class="grid"><article class="card"><h2>Recherche</h2><form method="post" action="/search"><label>Zone<input name="zone" placeholder="Toulouse" required></label><label>Type<select name="category"><option value="all">Tous types</option><option>restaurants</option><option>hotels</option><option>garages</option><option>immobilier</option><option>comptables</option><option>avocats</option><option>informatique</option><option value="batiment">bâtiment</option><option>coiffure</option><option>sport</option><option>transport</option></select></label><div class="row"><label>Rayon km<input type="number" name="radius_km" value="20" min="1" max="50"></label><label>Maximum<input type="number" name="max_results" value="50" min="1" max="100"></label></div><label class="check"><input type="checkbox" name="enrich" value="true" checked> Rechercher et enrichir automatiquement les emails professionnels publics</label><button>Rechercher</button></form></article>
 <article class="card"><h2>Nouvelle campagne</h2><form method="post" action="/campaigns"><label>Nom<input name="name" required></label><label>Activité<input name="category"></label><label>Ville<input name="city"></label><label>Score min.<input type="number" name="min_score" value="50"></label><label>Objet<input name="subject" value="Une solution pour {entreprise}" required></label><label>Message<textarea name="body" rows="8" required>Bonjour,
@@ -9,37 +9,24 @@ Je vous contacte sur votre adresse professionnelle publique afin de vous présen
 
 Cordialement,
 FEWURA</textarea></label><button>Créer</button></form></article></section>
-<section class="card"><div class="title-row"><h2>Prospects</h2><div><a class="btn2" href="/export/csv">CSV</a> <a class="btn2" href="/export/xlsx">XLSX</a></div></div><div class="table"><table><thead><tr><th>Entreprise</th><th>Ville</th><th>Activité</th><th>Email</th><th>Téléphone</th><th>Score</th><th>État</th></tr></thead><tbody>{% for p in prospects %}<tr><td>{{p.company_name}}</td><td>{{p.city or ''}}</td><td>{{p.category or ''}}</td><td>{{p.email or ''}}</td><td>{{p.phone or ''}}</td><td><b>{{p.lead_score}}</b></td><td>{{p.status}}</td></tr>{% endfor %}</tbody></table></div></section>
+<section class="card"><div class="title-row"><h2>Prospects</h2><div><a class="btn2" href="/export/csv">CSV</a> <a class="btn2" href="/export/xlsx">XLSX</a></div></div>
+<div class="bulk-toolbar"><button type="button" class="btn2" id="select-all-visible">Tout sélectionner</button><button type="button" class="btn2" id="clear-selection">Désélectionner</button><span id="selected-count">0 sélectionné</span><button type="submit" class="danger" form="bulk-delete-form" id="delete-selected" disabled>Supprimer la sélection</button><form method="post" action="/prospects/delete-all" id="delete-all-form"><input type="hidden" name="confirm_delete_all" value="SUPPRIMER_TOUT"><button type="submit" class="danger danger-outline">Supprimer tous les contacts</button></form></div>
+<form method="post" action="/prospects/delete-selected" id="bulk-delete-form"><div class="table"><table><thead><tr><th><input type="checkbox" id="master-checkbox" aria-label="Sélectionner tous les contacts visibles"></th><th>Entreprise</th><th>Ville</th><th>Activité</th><th>Email</th><th>Téléphone</th><th>Score</th><th>État</th><th>Action</th></tr></thead><tbody>{% for p in prospects %}<tr><td><input type="checkbox" class="prospect-check" name="prospect_ids" value="{{p.id}}" aria-label="Sélectionner {{p.company_name}}"></td><td>{{p.company_name}}</td><td>{{p.city or ''}}</td><td>{{p.category or ''}}</td><td>{{p.email or ''}}</td><td>{{p.phone or ''}}</td><td><b>{{p.lead_score}}</b></td><td>{{p.status}}</td><td><button type="submit" class="danger small-danger" formaction="/prospects/{{p.id}}/delete" formmethod="post" data-delete-one="{{p.company_name}}">Supprimer</button></td></tr>{% endfor %}</tbody></table></div></form></section>
 <section class="card"><h2>Campagnes</h2>{% for c in campaigns %}<div class="campaign"><div><b>{{c.name}}</b><small>{{c.subject}}</small></div><form method="post" action="/campaigns/{{c.id}}/run"><input type="number" name="limit" value="10" min="1" max="20"><label class="check"><input type="checkbox" name="live" value="true"> Envoi réel</label><label class="check"><input type="checkbox" name="confirm" value="true"> Je confirme</label><button>Exécuter</button></form></div>{% endfor %}</section></main>
 <script>
-(() => {
-  let internalNavigation = false;
-  let quitting = false;
-
-  // Si la page vient d'un rafraîchissement, annuler un éventuel arrêt programmé.
-  fetch('/shutdown/cancel', {method:'POST', keepalive:true}).catch(() => {});
-
-  document.querySelectorAll('form').forEach(form => {
-    form.addEventListener('submit', () => { internalNavigation = true; });
-  });
-  document.querySelectorAll('a[href^="/"]').forEach(link => {
-    link.addEventListener('click', () => { internalNavigation = true; });
-  });
-
-  document.getElementById('quitFewura').addEventListener('click', async () => {
-    quitting = true;
-    try {
-      await fetch('/shutdown', {method:'POST', keepalive:true});
-    } catch (_) {}
-    document.body.innerHTML = '<main style="max-width:700px;margin:80px auto;font-family:sans-serif"><h1>FEWURA fermé</h1><p>Le processus a été arrêté. Vous pouvez fermer cette fenêtre.</p></main>';
-    try { window.close(); } catch (_) {}
-  });
-
-  window.addEventListener('pagehide', () => {
-    if (!internalNavigation && !quitting) {
-      try { navigator.sendBeacon('/shutdown/schedule', new Blob([], {type:'text/plain'})); } catch (_) {}
-    }
-  });
-})();
-</script>
-</body></html>
+const checks=[...document.querySelectorAll('.prospect-check')];
+const master=document.getElementById('master-checkbox');
+const count=document.getElementById('selected-count');
+const deleteSelected=document.getElementById('delete-selected');
+function refreshSelection(){const n=checks.filter(c=>c.checked).length;count.textContent=n+' sélectionné'+(n>1?'s':'');deleteSelected.disabled=n===0;if(master){master.checked=checks.length>0&&n===checks.length;master.indeterminate=n>0&&n<checks.length;}}
+if(master)master.addEventListener('change',()=>{checks.forEach(c=>c.checked=master.checked);refreshSelection();});
+checks.forEach(c=>c.addEventListener('change',refreshSelection));
+document.getElementById('select-all-visible').addEventListener('click',()=>{checks.forEach(c=>c.checked=true);refreshSelection();});
+document.getElementById('clear-selection').addEventListener('click',()=>{checks.forEach(c=>c.checked=false);refreshSelection();});
+document.getElementById('bulk-delete-form').addEventListener('submit',e=>{const n=checks.filter(c=>c.checked).length;if(n===0){e.preventDefault();return;}if(!confirm('Supprimer définitivement '+n+' contact'+(n>1?'s':'')+' sélectionné'+(n>1?'s':'')+' ?'))e.preventDefault();});
+document.querySelectorAll('[data-delete-one]').forEach(b=>b.addEventListener('click',e=>{if(!confirm('Supprimer ce contact : '+b.dataset.deleteOne+' ?'))e.preventDefault();}));
+document.getElementById('delete-all-form').addEventListener('submit',e=>{if(!confirm('ATTENTION : supprimer TOUS les contacts de Fewura ? Cette action est irréversible.'))e.preventDefault();});
+let internalNavigation=false;document.addEventListener('submit',()=>{internalNavigation=true;});document.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{internalNavigation=true;}));window.addEventListener('pageshow',()=>{internalNavigation=false;fetch('/shutdown/cancel',{method:'POST',keepalive:true}).catch(()=>{});});window.addEventListener('pagehide',()=>{if(!internalNavigation){navigator.sendBeacon('/shutdown/schedule','');}});
+document.getElementById('quit-app').addEventListener('click',async()=>{if(!confirm('Quitter Fewura et arrêter complètement le programme ?'))return;internalNavigation=true;try{await fetch('/shutdown',{method:'POST'});}catch(e){}window.close();document.body.innerHTML='<main style="padding:40px;font-family:Segoe UI,Arial"><h2>Fewura est arrêté.</h2><p>Vous pouvez fermer cette fenêtre.</p></main>';});
+refreshSelection();
+</script></body></html>
