@@ -1,7 +1,7 @@
 name: Windows build and smoke test
 
-# Release gate: no Windows setup is published unless the frozen EXE answers /health
-# and can create its SQLite database plus CSV/XLSX exports.
+# Release gate: no Windows setup is published unless both the frozen EXE and
+# the EXE installed from the final Setup pass real runtime smoke tests.
 on:
   push:
     branches: [main]
@@ -59,7 +59,7 @@ jobs:
 
           if (-not $iscc) {
             $candidates = @(
-              "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
+              "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
               "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
               "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
               "$env:ChocolateyInstall\bin\ISCC.exe"
@@ -92,12 +92,34 @@ jobs:
 
           $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe'
           if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.2 attendu n a pas ete cree.' }
-
           Write-Host 'SETUP BUILD OK'
 
-      - name: Upload tested Windows Setup
+      - name: Install final Setup silently
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe').Path
+          $installDir = Join-Path $env:RUNNER_TEMP 'FEWURA-PROSPECT-installed'
+          if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
+          $args = @(
+            '/VERYSILENT',
+            '/SUPPRESSMSGBOXES',
+            '/NORESTART',
+            '/SP-',
+            "/DIR=$installDir"
+          )
+          $p = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installation silencieuse echouee: code $($p.ExitCode)" }
+          $installedExe = Join-Path $installDir 'FEWURA_Prospect.exe'
+          if (-not (Test-Path $installedExe)) { throw "EXE installe introuvable: $installedExe" }
+          "FEWURA_INSTALLED_EXE=$installedExe" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Smoke-test installed application
+        shell: pwsh
+        run: .\TESTER_EXE_WINDOWS.ps1 -ExePath "$env:FEWURA_INSTALLED_EXE"
+
+      - name: Upload fully tested Windows Setup
         uses: actions/upload-artifact@v4
         with:
-          name: FEWURA-PROSPECT-Windows-1.0.2
+          name: FEWURA-PROSPECT-Windows-1.0.2-TESTED
           path: installer/output/FEWURA_PROSPECT_Setup_1.0.2.exe
           if-no-files-found: error
