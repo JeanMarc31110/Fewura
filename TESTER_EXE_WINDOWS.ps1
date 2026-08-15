@@ -21,22 +21,15 @@ try {
     $proc = Start-Process -FilePath $exe -PassThru
     $health = $null
     for ($i = 0; $i -lt 80; $i++) {
-        if ($proc.HasExited) {
-            throw "Le binaire s'est arrete pendant le test avec le code $($proc.ExitCode)."
-        }
+        if ($proc.HasExited) { throw "Le binaire s'est arrete pendant le test avec le code $($proc.ExitCode)." }
         try {
             $health = Invoke-RestMethod -Uri ("http://127.0.0.1:{0}/health" -f $port) -TimeoutSec 1
             if ($health.ok -eq $true) { break }
         } catch {}
         Start-Sleep -Milliseconds 250
     }
-
-    if (-not $health -or $health.ok -ne $true) {
-        throw 'Le endpoint /health du binaire compile ne repond pas.'
-    }
-    if ($health.version -ne '1.0.3') {
-        throw "Version inattendue du binaire: $($health.version)"
-    }
+    if (-not $health -or $health.ok -ne $true) { throw 'Le endpoint /health du binaire compile ne repond pas.' }
+    if ($health.version -ne '1.0.4') { throw "Version inattendue du binaire: $($health.version)" }
 
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/" -f $port) -TimeoutSec 5 | Out-Null
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/export/csv" -f $port) -TimeoutSec 10 -OutFile (Join-Path $dataRoot 'download.csv')
@@ -46,11 +39,8 @@ try {
     $csv = Join-Path $dataRoot 'exports\prospects.csv'
     $xlsx = Join-Path $dataRoot 'exports\prospects.xlsx'
     foreach ($required in @($db, $csv, $xlsx)) {
-        if (-not (Test-Path $required)) {
-            throw "Fichier attendu non cree: $required"
-        }
+        if (-not (Test-Path $required)) { throw "Fichier attendu non cree: $required" }
     }
-
     Write-Host 'EXE SMOKE TEST OK' -ForegroundColor Green
     exit 0
 }
