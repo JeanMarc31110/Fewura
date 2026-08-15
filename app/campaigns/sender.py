@@ -38,6 +38,15 @@ def run_campaign(campaign_id, live=False, confirm=False, limit=10):
             if channel == "email":
                 res = send_email(recipient, subject, body, live)
             elif channel == "whatsapp":
+                if live and not int(p.get("whatsapp_opt_in") or 0):
+                    out.append({
+                        "prospect": p["company_name"],
+                        "recipient": recipient,
+                        "channel": "whatsapp",
+                        "status": "a_valider",
+                        "reason": "opt-in WhatsApp requis pour l'envoi réel",
+                    })
+                    continue
                 res = send_whatsapp(recipient, body, live)
             else:
                 raise ValueError("Canal de contact non pris en charge")
