@@ -28,7 +28,8 @@ def init_db():
       website TEXT, email TEXT, contact_form_url TEXT, source_url TEXT,
       source_type TEXT, confidence REAL DEFAULT 0, lead_score INTEGER DEFAULT 0,
       email_status TEXT DEFAULT 'inconnu', discovered_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      last_checked_at TEXT, status TEXT DEFAULT 'nouveau', fingerprint TEXT UNIQUE
+      last_checked_at TEXT, status TEXT DEFAULT 'nouveau', fingerprint TEXT UNIQUE,
+      whatsapp_opt_in INTEGER DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS campaigns(
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, subject TEXT NOT NULL,
@@ -46,6 +47,7 @@ def init_db():
       reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, phone TEXT
     );
     """)
+    _ensure_column(con, "prospects", "whatsapp_opt_in", "INTEGER DEFAULT 0")
     _ensure_column(con, "communications", "channel", "TEXT DEFAULT 'email'")
     _ensure_column(con, "do_not_contact", "phone", "TEXT")
     con.commit(); con.close()
