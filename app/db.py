@@ -1,14 +1,16 @@
-from pathlib import Path
 import sqlite3
-BASE = Path(__file__).resolve().parents[1]
-DB = BASE / "data" / "prospect.db"
-DB.parent.mkdir(parents=True, exist_ok=True)
+
+from app.paths import database_path
+
+DB = database_path()
+
 
 def connect():
     con = sqlite3.connect(DB)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys=ON")
     return con
+
 
 def init_db():
     con = connect()
@@ -39,11 +41,14 @@ def init_db():
     """)
     con.commit(); con.close()
 
+
 def rows(sql, params=()):
     con = connect(); out = [dict(r) for r in con.execute(sql, params).fetchall()]; con.close(); return out
 
+
 def one(sql, params=()):
     con = connect(); r = con.execute(sql, params).fetchone(); con.close(); return dict(r) if r else None
+
 
 def execute(sql, params=()):
     con = connect(); cur = con.execute(sql, params); con.commit(); rid = cur.lastrowid; con.close(); return rid
