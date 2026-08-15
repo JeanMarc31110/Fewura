@@ -53,10 +53,8 @@ jobs:
         shell: pwsh
         run: |
           $iscc = $null
-
           $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
           if ($command) { $iscc = $command.Source }
-
           if (-not $iscc) {
             $candidates = @(
               "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
@@ -66,47 +64,26 @@ jobs:
             )
             $iscc = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
           }
-
           if (-not $iscc) {
-            $roots = @(
-              $env:ChocolateyInstall,
-              $env:ProgramFiles,
-              ${env:ProgramFiles(x86)},
-              $env:LOCALAPPDATA
-            ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
-
+            $roots = @($env:ChocolateyInstall,$env:ProgramFiles,${env:ProgramFiles(x86)},$env:LOCALAPPDATA) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
             foreach ($root in $roots) {
               $found = Get-ChildItem -Path $root -Filter ISCC.exe -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-              if ($found) {
-                $iscc = $found.FullName
-                break
-              }
+              if ($found) { $iscc = $found.FullName; break }
             }
           }
-
           if (-not $iscc) { throw 'ISCC.exe introuvable apres recherche complete.' }
-          Write-Host "ISCC trouve: $iscc"
-
           & $iscc '.\installer\FEWURA_Prospect.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup a retourne le code $LASTEXITCODE" }
-
-          $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe'
-          if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.2 attendu n a pas ete cree.' }
-          Write-Host 'SETUP BUILD OK'
+          $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe'
+          if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.3 attendu n a pas ete cree.' }
 
       - name: Install final Setup silently
         shell: pwsh
         run: |
-          $setup = (Resolve-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe').Path
+          $setup = (Resolve-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe').Path
           $installDir = Join-Path $env:RUNNER_TEMP 'FEWURA-PROSPECT-installed'
           if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
-          $args = @(
-            '/VERYSILENT',
-            '/SUPPRESSMSGBOXES',
-            '/NORESTART',
-            '/SP-',
-            "/DIR=$installDir"
-          )
+          $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$installDir")
           $p = Start-Process -FilePath $setup -ArgumentList $args -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "Installation silencieuse echouee: code $($p.ExitCode)" }
           $installedExe = Join-Path $installDir 'FEWURA_Prospect.exe'
@@ -120,6 +97,6 @@ jobs:
       - name: Upload fully tested Windows Setup
         uses: actions/upload-artifact@v4
         with:
-          name: FEWURA-PROSPECT-Windows-1.0.2-TESTED
-          path: installer/output/FEWURA_PROSPECT_Setup_1.0.2.exe
+          name: FEWURA-PROSPECT-Windows-1.0.3-TESTED
+          path: installer/output/FEWURA_PROSPECT_Setup_1.0.3.exe
           if-no-files-found: error
