@@ -29,7 +29,7 @@ try {
         Start-Sleep -Milliseconds 250
     }
     if (-not $health -or $health.ok -ne $true) { throw 'Le endpoint /health du binaire compile ne repond pas.' }
-    if ($health.version -ne '1.0.4') { throw "Version inattendue du binaire: $($health.version)" }
+    if ($health.version -ne '1.0.5') { throw "Version inattendue du binaire: $($health.version)" }
 
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/" -f $port) -TimeoutSec 5 | Out-Null
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/export/csv" -f $port) -TimeoutSec 10 -OutFile (Join-Path $dataRoot 'download.csv')
@@ -41,7 +41,17 @@ try {
     foreach ($required in @($db, $csv, $xlsx)) {
         if (-not (Test-Path $required)) { throw "Fichier attendu non cree: $required" }
     }
-    Write-Host 'EXE SMOKE TEST OK' -ForegroundColor Green
+
+    # Test critique: la commande Quitter doit réellement tuer l'instance.
+    Invoke-RestMethod -Method Post -Uri ("http://127.0.0.1:{0}/shutdown" -f $port) -TimeoutSec 3 | Out-Null
+    $stopped = $false
+    for ($i = 0; $i -lt 40; $i++) {
+        Start-Sleep -Milliseconds 250
+        if ($proc.HasExited) { $stopped = $true; break }
+    }
+    if (-not $stopped) { throw 'Le processus Fewura reste actif apres /shutdown.' }
+
+    Write-Host 'EXE SMOKE TEST + SHUTDOWN OK' -ForegroundColor Green
     exit 0
 }
 catch {
