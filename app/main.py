@@ -12,14 +12,14 @@ from app.paths import user_data_dir, install_dir
 load_dotenv(user_data_dir() / ".env", override=False)
 load_dotenv(install_dir() / ".env", override=False)
 
-from app.db import init_db, rows, one, execute
+from app.db import init_db, rows, one, execute, connect
 from app.search.engine import search_businesses
 from app.services import upsert_prospect, list_prospects
 from app.campaigns.sender import run_campaign
 from app.exporter import export_csv, export_xlsx
 
 BASE = Path(__file__).resolve().parents[1]
-app = FastAPI(title="FEWURA PROSPECT", version="1.0.5")
+app = FastAPI(title="FEWURA PROSPECT", version="1.0.6")
 app.mount("/static", StaticFiles(directory=str(BASE / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE / "app" / "templates"))
 
@@ -78,6 +78,55 @@ def dnc(pid: int, reason: str = Form("opposition")):
     execute("UPDATE prospects SET status='désinscrit' WHERE id=?", (pid,))
     return RedirectResponse("/", 303)
 
+
+def _delete_prospect_ids(ids: list[int]) -> int:
+    clean_ids = sorted({int(x) for x in ids if int(x) > 0})
+    if not clean_ids:
+        return 0
+    marks = ",".join("?" for _ in clean_ids)
+    con = connect()
+    try:
+        con.execute(f"UPDATE communications SET prospect_id=NULL WHERE prospect_id IN ({marks})", clean_ids)
+        cur = con.execute(f"DELETE FROM prospects WHERE id IN ({marks})", clean_ids)
+        con.commit()
+        return int(cur.rowcount or 0)
+    finally:
+        con.close()
+
+
+@app.post("/prospects/{pid}/delete")
+def delete_one_prospect(pid: int):
+    _delete_prospect_ids([pid])
+    return RedirectResponse("/", 303)
+
+
+@app.post("/prospects/delete-selected")
+async def delete_selected_prospects(request: Request):
+    form = await request.form()
+    raw_ids = form.getlist("prospect_ids")
+    ids: list[int] = []
+    for raw in raw_ids:
+        try:
+            ids.append(int(str(raw)))
+        except (TypeError, ValueError):
+            continue
+    _delete_prospect_ids(ids)
+    return RedirectResponse("/", 303)
+
+
+@app.post("/prospects/delete-all")
+def delete_all_prospects(confirm_delete_all: str = Form("")):
+    if confirm_delete_all != "SUPPRIMER_TOUT":
+        raise HTTPException(400, "Confirmation de suppression totale invalide")
+    con = connect()
+    try:
+        con.execute("UPDATE communications SET prospect_id=NULL WHERE prospect_id IS NOT NULL")
+        con.execute("DELETE FROM prospects")
+        con.commit()
+    finally:
+        con.close()
+    return RedirectResponse("/", 303)
+
 @app.get("/export/csv")
 def ecsv():
     return FileResponse(export_csv(), filename="prospects.csv")
@@ -114,7 +163,6 @@ def shutdown(request: Request):
 
 @app.post("/shutdown/schedule")
 def schedule_shutdown(request: Request):
-    """Programme l'arrêt après fermeture de la fenêtre; une nouvelle page Fewura peut l'annuler."""
     global _shutdown_timer
     _require_local(request)
     with _shutdown_lock:
@@ -139,4 +187,4 @@ def cancel_shutdown(request: Request):
 
 @app.get("/health")
 def health():
-    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.5"}
+    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.6"}
