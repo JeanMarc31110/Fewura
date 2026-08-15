@@ -1,6 +1,6 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
-title Build FEWURA PROSPECT 1.0.4
+title Build FEWURA PROSPECT 1.0.5
 cd /d "%~dp0"
 
 where py >nul 2>nul && (set PY=py) || (set PY=python)
@@ -16,8 +16,8 @@ findstr /C:"log_config=None" prospect_launcher.py >nul || (
   pause
   exit /b 1
 )
-findstr /C:"1.0.4" app\main.py >nul || (
-  echo ERREUR: app\main.py local n'est pas en version 1.0.4. Lancez git pull.
+findstr /C:"1.0.5" app\main.py >nul || (
+  echo ERREUR: app\main.py local n'est pas en version 1.0.5. Lancez git pull.
   pause
   exit /b 1
 )
@@ -50,12 +50,12 @@ if not defined ISCC if exist "%LOCALAPPDATA%" for /r "%LOCALAPPDATA%" %%I in (IS
 if not defined ISCC goto :error
 
 "!ISCC!" installer\FEWURA_Prospect.iss || goto :error
-if not exist "installer\output\FEWURA_PROSPECT_Setup_1.0.4.exe" goto :error
+if not exist "installer\output\FEWURA_PROSPECT_Setup_1.0.5.exe" goto :error
 
 echo.
 echo ========================================
-echo BUILD + EXE SMOKE TEST + SETUP : OK
-echo installer\output\FEWURA_PROSPECT_Setup_1.0.4.exe
+echo BUILD + EXE SMOKE TEST + SHUTDOWN + SETUP : OK
+echo installer\output\FEWURA_PROSPECT_Setup_1.0.5.exe
 echo ========================================
 pause
 exit /b 0
