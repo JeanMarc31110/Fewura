@@ -34,7 +34,7 @@ try {
     if (-not $health -or $health.ok -ne $true) {
         throw 'Le endpoint /health du binaire compile ne repond pas.'
     }
-    if ($health.version -ne '1.0.2') {
+    if ($health.version -ne '1.0.3') {
         throw "Version inattendue du binaire: $($health.version)"
     }
 
