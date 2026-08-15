@@ -1,5 +1,5 @@
 from pathlib import Path
-import os, json
+import os, json, signal, threading, time
 
 from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse, RedirectResponse, FileResponse, JSONResponse
@@ -19,7 +19,7 @@ from app.campaigns.sender import run_campaign
 from app.exporter import export_csv, export_xlsx
 
 BASE = Path(__file__).resolve().parents[1]
-app = FastAPI(title="FEWURA PROSPECT", version="1.0.4")
+app = FastAPI(title="FEWURA PROSPECT", version="1.0.5")
 app.mount("/static", StaticFiles(directory=str(BASE / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE / "app" / "templates"))
 
@@ -83,6 +83,28 @@ def ecsv():
 def exlsx():
     return FileResponse(export_xlsx(), filename="prospects.xlsx")
 
+
+def _shutdown_process() -> None:
+    # Laisser le temps a la reponse HTTP d'etre envoyee, puis demander un arret
+    # propre a Uvicorn. Sous Windows, os.kill(..., SIGTERM) termine aussi le
+    # processus fige PyInstaller si le signal n'est pas intercepte.
+    time.sleep(0.35)
+    try:
+        os.kill(os.getpid(), signal.SIGTERM)
+    except Exception:
+        os._exit(0)
+
+
+@app.post("/shutdown")
+def shutdown(request: Request):
+    # Fewura n'ecoute que sur 127.0.0.1. On garde tout de meme un verrou local
+    # pour qu'aucune requete non locale ne puisse fermer l'application.
+    client_host = request.client.host if request.client else ""
+    if client_host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
+        raise HTTPException(403, "Arrêt autorisé uniquement depuis le PC local")
+    threading.Thread(target=_shutdown_process, daemon=True).start()
+    return {"ok": True, "message": "FEWURA va s'arrêter"}
+
 @app.get("/health")
 def health():
-    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.4"}
+    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.5"}
