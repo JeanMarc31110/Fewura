@@ -33,10 +33,7 @@ Source: "..\dist\FEWURA_Prospect\*"; DestDir: "{app}"; Flags: ignoreversion recu
 
 [Icons]
 Name: "{autoprograms}\FEWURA\PROSPECT"; Filename: "{app}\{#MyAppExeName}"
-Name: "{autodesktop}\FEWURA PROSPECT"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-
-[Tasks]
-Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Raccourcis :"; Flags: unchecked
+Name: "{autodesktop}\FEWURA PROSPECT"; Filename: "{app}\{#MyAppExeName}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Lancer FEWURA PROSPECT"; Flags: nowait postinstall skipifsilent
