@@ -43,4 +43,21 @@ assert res2["results"][0]["status"] == "simule"
 assert res2["results"][0]["channel"] == "whatsapp"
 assert res2["results"][0]["recipient"] == "33612345678"
 
-print("FEWURA PROSPECT : TESTS CORE + WHATSAPP OK")
+# Suppression unitaire/groupe : l'historique de communication reste présent,
+# mais son prospect_id est détaché avant suppression du contact.
+for idx in (1, 2):
+    upsert_prospect({
+        "company_name":f"Delete Test {idx}","category":"delete-test","address":f"{idx} rue Delete",
+        "postal_code":"31000","city":"Toulouse","country":"FR","phone":f"050000000{idx}",
+        "website":f"https://delete-{idx}.example","email":f"contact{idx}@delete.example",
+        "source_url":f"https://delete-{idx}.example","source_type":"demo"
+    }, enrich=False)
+from app.main import _delete_prospect_ids
+ids = [one("SELECT id FROM prospects WHERE company_name=?", (f"Delete Test {idx}",))["id"] for idx in (1, 2)]
+comm_id = execute("INSERT INTO communications(prospect_id,recipient,status,channel) VALUES(?,?,?,?)", (ids[0], "test@delete.example", "simule", "email"))
+assert _delete_prospect_ids(ids) == 2
+assert one("SELECT id FROM prospects WHERE id=?", (ids[0],)) is None
+assert one("SELECT id FROM prospects WHERE id=?", (ids[1],)) is None
+assert one("SELECT prospect_id FROM communications WHERE id=?", (comm_id,))["prospect_id"] is None
+
+print("FEWURA PROSPECT : TESTS CORE + WHATSAPP + SUPPRESSION OK")
