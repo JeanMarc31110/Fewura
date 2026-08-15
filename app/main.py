@@ -19,15 +19,13 @@ from app.campaigns.sender import run_campaign
 from app.exporter import export_csv, export_xlsx
 
 BASE = Path(__file__).resolve().parents[1]
-app = FastAPI(title="FEWURA PROSPECT", version="1.0.3")
+app = FastAPI(title="FEWURA PROSPECT", version="1.0.4")
 app.mount("/static", StaticFiles(directory=str(BASE / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE / "app" / "templates"))
-
 
 @app.on_event("startup")
 def startup():
     init_db()
-
 
 @app.get("/", response_class=HTMLResponse)
 def dashboard(request: Request):
@@ -45,15 +43,8 @@ def dashboard(request: Request):
     }
     return templates.TemplateResponse(request, "dashboard.html", context)
 
-
 @app.post("/search")
-def search(
-    zone: str = Form(...),
-    category: str = Form("all"),
-    radius_km: int = Form(20),
-    max_results: int = Form(50),
-    enrich: bool = Form(False),
-):
+def search(zone: str = Form(...), category: str = Form("all"), radius_km: int = Form(20), max_results: int = Form(50), enrich: bool = Form(False)):
     try:
         found = search_businesses(zone, category, radius_km, max_results)
     except Exception as e:
@@ -62,30 +53,10 @@ def search(
         upsert_prospect(p, enrich=enrich)
     return RedirectResponse("/", 303)
 
-
 @app.post("/campaigns")
-def campaign(
-    name: str = Form(...),
-    subject: str = Form(...),
-    body: str = Form(...),
-    category: str = Form(""),
-    city: str = Form(""),
-    min_score: int = Form(0),
-):
-    execute(
-        "INSERT INTO campaigns(name,subject,body,filter_json) VALUES(?,?,?,?)",
-        (
-            name,
-            subject,
-            body,
-            json.dumps(
-                {"category": category or None, "city": city or None, "min_score": min_score},
-                ensure_ascii=False,
-            ),
-        ),
-    )
+def campaign(name: str = Form(...), subject: str = Form(...), body: str = Form(...), category: str = Form(""), city: str = Form(""), min_score: int = Form(0)):
+    execute("INSERT INTO campaigns(name,subject,body,filter_json) VALUES(?,?,?,?)", (name, subject, body, json.dumps({"category": category or None, "city": city or None, "min_score": min_score}, ensure_ascii=False)))
     return RedirectResponse("/", 303)
-
 
 @app.post("/campaigns/{cid}/run")
 def run(cid: int, live: bool = Form(False), confirm: bool = Form(False), limit: int = Form(10)):
@@ -94,31 +65,24 @@ def run(cid: int, live: bool = Form(False), confirm: bool = Form(False), limit: 
     except Exception as e:
         raise HTTPException(400, str(e))
 
-
 @app.post("/prospects/{pid}/dnc")
 def dnc(pid: int, reason: str = Form("opposition")):
     p = one("SELECT * FROM prospects WHERE id=?", (pid,))
     if not p:
         raise HTTPException(404)
     domain = p["email"].split("@", 1)[1] if p.get("email") and "@" in p["email"] else None
-    execute(
-        "INSERT INTO do_not_contact(email,domain,company_name,reason) VALUES(?,?,?,?)",
-        (p.get("email"), domain, p.get("company_name"), reason),
-    )
+    execute("INSERT INTO do_not_contact(email,domain,company_name,reason) VALUES(?,?,?,?)", (p.get("email"), domain, p.get("company_name"), reason))
     execute("UPDATE prospects SET status='désinscrit' WHERE id=?", (pid,))
     return RedirectResponse("/", 303)
-
 
 @app.get("/export/csv")
 def ecsv():
     return FileResponse(export_csv(), filename="prospects.csv")
 
-
 @app.get("/export/xlsx")
 def exlsx():
     return FileResponse(export_xlsx(), filename="prospects.xlsx")
 
-
 @app.get("/health")
 def health():
-    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.3"}
+    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.4"}
