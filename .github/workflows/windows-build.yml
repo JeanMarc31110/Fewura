@@ -1,7 +1,5 @@
 name: Windows build and smoke test
 
-# Release gate: no Windows setup is published unless both the frozen EXE and
-# the EXE installed from the final Setup pass real runtime smoke tests.
 on:
   push:
     branches: [main]
@@ -36,6 +34,7 @@ jobs:
           $env:FEWURA_DATA_DIR = Join-Path $env:RUNNER_TEMP 'fewura-core-test'
           python -m compileall -q app prospect_launcher.py TESTER_PROSPECT.py
           python TESTER_PROSPECT.py
+          python -c "from app.search.engine import _build_query; q=_build_query(43.6045,1.4442,20000,'hotels'); assert 'tourism' in q and 'hotel' in q and 'out tags center' in q"
 
       - name: Build Windows EXE
         shell: pwsh
@@ -74,13 +73,13 @@ jobs:
           if (-not $iscc) { throw 'ISCC.exe introuvable apres recherche complete.' }
           & $iscc '.\installer\FEWURA_Prospect.iss'
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup a retourne le code $LASTEXITCODE" }
-          $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe'
-          if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.3 attendu n a pas ete cree.' }
+          $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.4.exe'
+          if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.4 attendu n a pas ete cree.' }
 
       - name: Install final Setup silently
         shell: pwsh
         run: |
-          $setup = (Resolve-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.3.exe').Path
+          $setup = (Resolve-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.4.exe').Path
           $installDir = Join-Path $env:RUNNER_TEMP 'FEWURA-PROSPECT-installed'
           if (Test-Path $installDir) { Remove-Item $installDir -Recurse -Force }
           $args = @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART','/SP-',"/DIR=$installDir")
@@ -97,6 +96,6 @@ jobs:
       - name: Upload fully tested Windows Setup
         uses: actions/upload-artifact@v4
         with:
-          name: FEWURA-PROSPECT-Windows-1.0.3-TESTED
-          path: installer/output/FEWURA_PROSPECT_Setup_1.0.3.exe
+          name: FEWURA-PROSPECT-Windows-1.0.4-TESTED
+          path: installer/output/FEWURA_PROSPECT_Setup_1.0.4.exe
           if-no-files-found: error
