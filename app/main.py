@@ -23,6 +23,9 @@ app = FastAPI(title="FEWURA PROSPECT", version="1.0.5")
 app.mount("/static", StaticFiles(directory=str(BASE / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE / "app" / "templates"))
 
+_shutdown_lock = threading.Lock()
+_shutdown_timer: threading.Timer | None = None
+
 @app.on_event("startup")
 def startup():
     init_db()
@@ -84,26 +87,55 @@ def exlsx():
     return FileResponse(export_xlsx(), filename="prospects.xlsx")
 
 
-def _shutdown_process() -> None:
-    # Laisser le temps a la reponse HTTP d'etre envoyee, puis demander un arret
-    # propre a Uvicorn. Sous Windows, os.kill(..., SIGTERM) termine aussi le
-    # processus fige PyInstaller si le signal n'est pas intercepte.
-    time.sleep(0.35)
+def _require_local(request: Request) -> None:
+    client_host = request.client.host if request.client else ""
+    if client_host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
+        raise HTTPException(403, "Arrêt autorisé uniquement depuis le PC local")
+
+
+def _terminate_process() -> None:
     try:
         os.kill(os.getpid(), signal.SIGTERM)
     except Exception:
         os._exit(0)
 
 
+def _shutdown_after_response() -> None:
+    time.sleep(0.35)
+    _terminate_process()
+
+
 @app.post("/shutdown")
 def shutdown(request: Request):
-    # Fewura n'ecoute que sur 127.0.0.1. On garde tout de meme un verrou local
-    # pour qu'aucune requete non locale ne puisse fermer l'application.
-    client_host = request.client.host if request.client else ""
-    if client_host not in {"127.0.0.1", "::1", "localhost", "testclient"}:
-        raise HTTPException(403, "Arrêt autorisé uniquement depuis le PC local")
-    threading.Thread(target=_shutdown_process, daemon=True).start()
+    _require_local(request)
+    threading.Thread(target=_shutdown_after_response, daemon=True).start()
     return {"ok": True, "message": "FEWURA va s'arrêter"}
+
+
+@app.post("/shutdown/schedule")
+def schedule_shutdown(request: Request):
+    """Programme l'arrêt après fermeture de la fenêtre; une nouvelle page Fewura peut l'annuler."""
+    global _shutdown_timer
+    _require_local(request)
+    with _shutdown_lock:
+        if _shutdown_timer:
+            _shutdown_timer.cancel()
+        _shutdown_timer = threading.Timer(2.5, _terminate_process)
+        _shutdown_timer.daemon = True
+        _shutdown_timer.start()
+    return {"ok": True}
+
+
+@app.post("/shutdown/cancel")
+def cancel_shutdown(request: Request):
+    global _shutdown_timer
+    _require_local(request)
+    with _shutdown_lock:
+        if _shutdown_timer:
+            _shutdown_timer.cancel()
+            _shutdown_timer = None
+    return {"ok": True}
+
 
 @app.get("/health")
 def health():
