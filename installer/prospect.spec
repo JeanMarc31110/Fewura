@@ -29,6 +29,7 @@ for package in [
     'dns',
     'openpyxl',
     'multipart',
+    'ddgs',
 ]:
     try:
         d, b, h = collect_all(package)
@@ -47,6 +48,7 @@ hiddenimports += [
     'uvicorn.protocols.websockets.auto',
     'uvicorn.lifespan.on',
     'multipart',
+    'ddgs',
 ]
 
 
