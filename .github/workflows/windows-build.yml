@@ -49,20 +49,51 @@ jobs:
         shell: pwsh
         run: choco install innosetup -y --no-progress
 
-      - name: Build Setup
+      - name: Locate Inno Setup and build Setup
         shell: pwsh
         run: |
-          $candidates = @(
-            "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-            "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
-            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
-          )
-          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $iscc) { throw 'ISCC.exe introuvable apres installation Inno Setup.' }
-          & $iscc '.\installer\FEWURA_Prospect.iss'
-          if (-not (Test-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe')) {
-            throw 'Le Setup 1.0.2 attendu n a pas ete cree.'
+          $iscc = $null
+
+          $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if ($command) { $iscc = $command.Source }
+
+          if (-not $iscc) {
+            $candidates = @(
+              "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
+              "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+              "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+              "$env:ChocolateyInstall\bin\ISCC.exe"
+            )
+            $iscc = $candidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
           }
+
+          if (-not $iscc) {
+            $roots = @(
+              $env:ChocolateyInstall,
+              $env:ProgramFiles,
+              ${env:ProgramFiles(x86)},
+              $env:LOCALAPPDATA
+            ) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique
+
+            foreach ($root in $roots) {
+              $found = Get-ChildItem -Path $root -Filter ISCC.exe -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($found) {
+                $iscc = $found.FullName
+                break
+              }
+            }
+          }
+
+          if (-not $iscc) { throw 'ISCC.exe introuvable apres recherche complete.' }
+          Write-Host "ISCC trouve: $iscc"
+
+          & $iscc '.\installer\FEWURA_Prospect.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup a retourne le code $LASTEXITCODE" }
+
+          $setup = '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe'
+          if (-not (Test-Path $setup)) { throw 'Le Setup 1.0.2 attendu n a pas ete cree.' }
+
+          Write-Host 'SETUP BUILD OK'
 
       - name: Upload tested Windows Setup
         uses: actions/upload-artifact@v4
