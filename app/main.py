@@ -19,7 +19,7 @@ from app.campaigns.sender import run_campaign
 from app.exporter import export_csv, export_xlsx
 
 BASE = Path(__file__).resolve().parents[1]
-app = FastAPI(title="FEWURA PROSPECT", version="1.0.2")
+app = FastAPI(title="FEWURA PROSPECT", version="1.0.3")
 app.mount("/static", StaticFiles(directory=str(BASE / "app" / "static")), name="static")
 templates = Jinja2Templates(directory=str(BASE / "app" / "templates"))
 
@@ -121,4 +121,4 @@ def exlsx():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.2"}
+    return {"ok": True, "app": "FEWURA PROSPECT", "version": "1.0.3"}
