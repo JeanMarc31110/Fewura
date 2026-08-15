@@ -12,6 +12,12 @@ def connect():
     return con
 
 
+def _ensure_column(con, table, column, definition):
+    cols = {row[1] for row in con.execute(f"PRAGMA table_info({table})").fetchall()}
+    if column not in cols:
+        con.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+
+
 def init_db():
     con = connect()
     con.executescript("""
@@ -32,13 +38,16 @@ def init_db():
     CREATE TABLE IF NOT EXISTS communications(
       id INTEGER PRIMARY KEY AUTOINCREMENT, prospect_id INTEGER, campaign_id INTEGER,
       recipient TEXT, subject TEXT, sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      status TEXT, provider_message_id TEXT, response_status TEXT, error TEXT
+      status TEXT, provider_message_id TEXT, response_status TEXT, error TEXT,
+      channel TEXT DEFAULT 'email'
     );
     CREATE TABLE IF NOT EXISTS do_not_contact(
       id INTEGER PRIMARY KEY AUTOINCREMENT, email TEXT, domain TEXT, company_name TEXT,
-      reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      reason TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP, phone TEXT
     );
     """)
+    _ensure_column(con, "communications", "channel", "TEXT DEFAULT 'email'")
+    _ensure_column(con, "do_not_contact", "phone", "TEXT")
     con.commit(); con.close()
 
 
