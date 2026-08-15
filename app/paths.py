@@ -8,21 +8,19 @@ APP_NAME = "PROSPECT"
 
 
 def install_dir() -> Path:
-    """Directory containing the installed application code/resources."""
     return Path(__file__).resolve().parents[1]
 
 
 def user_data_dir() -> Path:
-    """Writable per-user application directory.
-
-    Windows: %LOCALAPPDATA%\FEWURA\PROSPECT
-    Other OSes: ~/.local/share/FEWURA/PROSPECT (or XDG_DATA_HOME)
-    """
-    if os.name == "nt":
+    override = os.environ.get("FEWURA_DATA_DIR")
+    if override:
+        path = Path(override).expanduser().resolve()
+    elif os.name == "nt":
         root = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local"))
+        path = root / APP_VENDOR / APP_NAME
     else:
         root = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
-    path = root / APP_VENDOR / APP_NAME
+        path = root / APP_VENDOR / APP_NAME
     path.mkdir(parents=True, exist_ok=True)
     return path
 
@@ -35,5 +33,11 @@ def database_path() -> Path:
 
 def exports_dir() -> Path:
     path = user_data_dir() / "exports"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def logs_dir() -> Path:
+    path = user_data_dir() / "logs"
     path.mkdir(parents=True, exist_ok=True)
     return path
