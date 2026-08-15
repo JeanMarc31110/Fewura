@@ -1,5 +1,7 @@
 name: Windows build and smoke test
 
+# Release gate: no Windows setup is published unless the frozen EXE answers /health
+# and can create its SQLite database plus CSV/XLSX exports.
 on:
   push:
     branches: [main]
