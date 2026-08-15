@@ -29,7 +29,7 @@ try {
         Start-Sleep -Milliseconds 250
     }
     if (-not $health -or $health.ok -ne $true) { throw 'Le endpoint /health du binaire compile ne repond pas.' }
-    if ($health.version -ne '1.0.5') { throw "Version inattendue du binaire: $($health.version)" }
+    if ($health.version -ne '1.0.6') { throw "Version inattendue du binaire: $($health.version)" }
 
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/" -f $port) -TimeoutSec 5 | Out-Null
     Invoke-WebRequest -UseBasicParsing -Uri ("http://127.0.0.1:{0}/export/csv" -f $port) -TimeoutSec 10 -OutFile (Join-Path $dataRoot 'download.csv')
@@ -42,7 +42,6 @@ try {
         if (-not (Test-Path $required)) { throw "Fichier attendu non cree: $required" }
     }
 
-    # Test critique: la commande Quitter doit réellement tuer l'instance.
     Invoke-RestMethod -Method Post -Uri ("http://127.0.0.1:{0}/shutdown" -f $port) -TimeoutSec 3 | Out-Null
     $stopped = $false
     for ($i = 0; $i -lt 40; $i++) {
@@ -56,19 +55,10 @@ try {
 }
 catch {
     Write-Host ('EXE SMOKE TEST ECHEC: ' + $_.Exception.Message) -ForegroundColor Red
-    $log = Join-Path $dataRoot 'logs\startup-error.log'
-    if (Test-Path $log) {
-        Write-Host '--- startup-error.log ---'
-        Get-Content $log
-        Write-Host '-------------------------'
-    }
     exit 1
 }
 finally {
-    if ($proc -and -not $proc.HasExited) {
-        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        try { $proc.WaitForExit() } catch {}
-    }
+    if ($proc -and -not $proc.HasExited) { Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue }
     if ($null -eq $oldPort) { Remove-Item Env:FEWURA_PORT -ErrorAction SilentlyContinue } else { $env:FEWURA_PORT = $oldPort }
     if ($null -eq $oldNoBrowser) { Remove-Item Env:FEWURA_NO_BROWSER -ErrorAction SilentlyContinue } else { $env:FEWURA_NO_BROWSER = $oldNoBrowser }
     if ($null -eq $oldData) { Remove-Item Env:FEWURA_DATA_DIR -ErrorAction SilentlyContinue } else { $env:FEWURA_DATA_DIR = $oldData }
