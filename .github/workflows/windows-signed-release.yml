@@ -1,0 +1,161 @@
+name: FEWURA signed Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    runs-on: windows-latest
+    env:
+      FEWURA_DATA_DIR: ${{ runner.temp }}\fewura-release-test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Require FEWURA signing configuration
+        shell: pwsh
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_ARTIFACT_SIGNING_ENDPOINT: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          AZURE_CODE_SIGNING_NAME: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          AZURE_CERT_PROFILE_NAME: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+        run: |
+          $required = @(
+            'AZURE_TENANT_ID',
+            'AZURE_CLIENT_ID',
+            'AZURE_CLIENT_SECRET',
+            'AZURE_ARTIFACT_SIGNING_ENDPOINT',
+            'AZURE_CODE_SIGNING_NAME',
+            'AZURE_CERT_PROFILE_NAME'
+          )
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace((Get-Item "Env:$name").Value)) {
+              throw "Release client bloquee: secret de signature manquant: $name"
+            }
+          }
+
+      - name: Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: requirements-build.txt
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-build.txt
+
+      - name: Core tests
+        shell: pwsh
+        run: |
+          python -m compileall -q app prospect_launcher.py TESTER_PROSPECT.py
+          python TESTER_PROSPECT.py
+
+      - name: Build Windows EXE
+        shell: pwsh
+        run: pyinstaller --clean --noconfirm installer/prospect.spec
+
+      - name: Smoke-test frozen EXE before signing
+        shell: pwsh
+        run: .\TESTER_EXE_WINDOWS.ps1 -ExePath '.\dist\FEWURA_Prospect\FEWURA_Prospect.exe'
+
+      - name: Sign FEWURA application EXE
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\dist\FEWURA_Prospect
+          files-folder-filter: FEWURA_Prospect.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify application Authenticode signature
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature '.\dist\FEWURA_Prospect\FEWURA_Prospect.exe'
+          $sig | Format-List *
+          if ($sig.Status -ne 'Valid') { throw "Signature FEWURA invalide sur l'application: $($sig.Status)" }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build Setup containing signed application
+        shell: pwsh
+        run: |
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $roots = @($env:ChocolateyInstall,$env:ProgramFiles,${env:ProgramFiles(x86)},$env:LOCALAPPDATA) | Where-Object { $_ -and (Test-Path $_) }
+            foreach ($root in $roots) {
+              $f = Get-ChildItem $root -Filter ISCC.exe -File -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+              if ($f) { $iscc = $f.FullName; break }
+            }
+          }
+          if (-not $iscc) { throw 'ISCC.exe introuvable.' }
+          & $iscc '.\installer\FEWURA_Prospect.iss'
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup a retourne $LASTEXITCODE" }
+          if (-not (Test-Path '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe')) { throw 'Setup attendu introuvable.' }
+
+      - name: Sign FEWURA Setup
+        uses: azure/trusted-signing-action@v0
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: ${{ secrets.AZURE_ARTIFACT_SIGNING_ENDPOINT }}
+          trusted-signing-account-name: ${{ secrets.AZURE_CODE_SIGNING_NAME }}
+          certificate-profile-name: ${{ secrets.AZURE_CERT_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\installer\output
+          files-folder-filter: FEWURA_PROSPECT_Setup_1.0.2.exe
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
+      - name: Verify Setup Authenticode signature
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe'
+          $sig | Format-List *
+          if ($sig.Status -ne 'Valid') { throw "Signature FEWURA invalide sur le Setup: $($sig.Status)" }
+
+      - name: Install final signed Setup silently
+        shell: pwsh
+        run: |
+          $installDir = Join-Path $env:RUNNER_TEMP 'FEWURA-PROSPECT-installed'
+          & '.\installer\output\FEWURA_PROSPECT_Setup_1.0.2.exe' /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /DIR="$installDir"
+          if ($LASTEXITCODE -ne 0) { throw "Installation silencieuse echouee: $LASTEXITCODE" }
+          if (-not (Test-Path (Join-Path $installDir 'FEWURA_Prospect.exe'))) { throw 'EXE installe introuvable.' }
+          "FEWURA_TEST_INSTALL_DIR=$installDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Smoke-test installed signed application
+        shell: pwsh
+        run: .\TESTER_EXE_WINDOWS.ps1 -ExePath "$env:FEWURA_TEST_INSTALL_DIR\FEWURA_Prospect.exe"
+
+      - name: Verify installed EXE signature
+        shell: pwsh
+        run: |
+          $sig = Get-AuthenticodeSignature "$env:FEWURA_TEST_INSTALL_DIR\FEWURA_Prospect.exe"
+          if ($sig.Status -ne 'Valid') { throw "Signature invalide apres installation: $($sig.Status)" }
+
+      - name: Upload signed client release
+        uses: actions/upload-artifact@v4
+        with:
+          name: FEWURA-PROSPECT-Windows-1.0.2-SIGNED
+          path: installer/output/FEWURA_PROSPECT_Setup_1.0.2.exe
+          if-no-files-found: error
