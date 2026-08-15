@@ -2,10 +2,14 @@ from app.db import connect, rows
 from app.search.deduplication import fingerprint
 from app.scoring.lead_score import compute
 from app.extraction.website import extract_public_contacts
+from app.extraction.discovery import discover_official_website
 from app.extraction.email import email_status, is_public_business_email, normalize_email
 
 
 def upsert_prospect(p, enrich=False):
+    if enrich and not p.get("website"):
+        p["website"] = discover_official_website(p.get("company_name"), p.get("city"))
+
     if enrich and p.get("website") and not p.get("email"):
         c = extract_public_contacts(p["website"])
         p["email"] = c.get("email")
