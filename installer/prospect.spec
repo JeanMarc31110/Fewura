@@ -4,6 +4,7 @@ from PyInstaller.utils.hooks import collect_all
 
 ROOT = Path(SPECPATH).resolve().parent
 
+
 datas = [
     (str(ROOT / 'app' / 'templates'), 'app/templates'),
     (str(ROOT / 'app' / 'static'), 'app/static'),
@@ -11,28 +12,48 @@ datas = [
     (str(ROOT / '.env.example'), '.'),
     (str(ROOT / 'README.md'), '.'),
 ]
+binaries = []
+hiddenimports = []
 
-hiddenimports = [
+# Ces paquets utilisent des imports dynamiques. On les collecte explicitement
+# pour que le binaire Windows teste soit autonome et reproductible.
+for package in [
+    'uvicorn',
+    'fastapi',
+    'starlette',
+    'jinja2',
+    'pydantic',
+    'httpx',
+    'bs4',
+    'lxml',
+    'dns',
+    'openpyxl',
+    'multipart',
+]:
+    try:
+        d, b, h = collect_all(package)
+        datas += d
+        binaries += b
+        hiddenimports += h
+    except Exception:
+        pass
+
+hiddenimports += [
     'uvicorn.logging',
+    'uvicorn.loops.asyncio',
     'uvicorn.loops.auto',
     'uvicorn.protocols.http.auto',
+    'uvicorn.protocols.http.h11_impl',
     'uvicorn.protocols.websockets.auto',
     'uvicorn.lifespan.on',
     'multipart',
 ]
 
-for package in ['fastapi', 'starlette', 'jinja2', 'pydantic', 'httpx', 'bs4', 'lxml', 'dns', 'openpyxl']:
-    try:
-        d, b, h = collect_all(package)
-        datas += d
-        hiddenimports += h
-    except Exception:
-        pass
 
 a = Analysis(
     [str(ROOT / 'prospect_launcher.py')],
     pathex=[str(ROOT)],
-    binaries=[],
+    binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
