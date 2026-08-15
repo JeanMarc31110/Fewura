@@ -1,5 +1,5 @@
 #define MyAppName "FEWURA PROSPECT"
-#define MyAppVersion "1.0.3"
+#define MyAppVersion "1.0.4"
 #define MyAppPublisher "FEWURA"
 #define MyAppExeName "FEWURA_Prospect.exe"
 
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\FEWURA\PROSPECT
 DefaultGroupName=FEWURA\PROSPECT
 OutputDir=output
-OutputBaseFilename=FEWURA_PROSPECT_Setup_1.0.3
+OutputBaseFilename=FEWURA_PROSPECT_Setup_1.0.4
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
