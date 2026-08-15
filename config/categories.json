@@ -1,0 +1,13 @@
+{
+  "restaurants": {"amenity": ["restaurant", "fast_food", "cafe"]},
+  "hotels": {"tourism": ["hotel", "guest_house", "motel"]},
+  "garages": {"shop": ["car_repair", "car"]},
+  "immobilier": {"office": ["estate_agent"]},
+  "comptables": {"office": ["accountant"]},
+  "avocats": {"office": ["lawyer"]},
+  "informatique": {"office": ["it"], "shop": ["computer"]},
+  "batiment": {"craft": ["builder", "electrician", "plumber", "carpenter", "painter"]},
+  "coiffure": {"shop": ["hairdresser"]},
+  "sport": {"leisure": ["fitness_centre", "sports_centre"]},
+  "transport": {"office": ["logistics"], "craft": ["transportation"]}
+}

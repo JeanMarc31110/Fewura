@@ -1,0 +1,11 @@
+.venv/
+.buildvenv/
+build/
+dist/
+installer/output/
+__pycache__/
+*.pyc
+.env
+data/*.db
+exports/*.csv
+exports/*.xlsx
