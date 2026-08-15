@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 
 from app.paths import user_data_dir, install_dir
 
-# Configuration utilisateur prioritaire, puis configuration d'installation.
 load_dotenv(user_data_dir() / ".env", override=False)
 load_dotenv(install_dir() / ".env", override=False)
 
@@ -38,16 +37,13 @@ def dashboard(request: Request):
         "sent": one("SELECT count(*) n FROM communications WHERE status='envoye'")["n"],
         "simulated": one("SELECT count(*) n FROM communications WHERE status='simule'")["n"],
     }
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {
-            "request": request,
-            "prospects": list_prospects(limit=200),
-            "campaigns": rows("SELECT * FROM campaigns ORDER BY id DESC LIMIT 20"),
-            "stats": stats,
-            "live_enabled": os.getenv("ALLOW_LIVE_SEND", "false").lower() == "true",
-        },
-    )
+    context = {
+        "prospects": list_prospects(limit=200),
+        "campaigns": rows("SELECT * FROM campaigns ORDER BY id DESC LIMIT 20"),
+        "stats": stats,
+        "live_enabled": os.getenv("ALLOW_LIVE_SEND", "false").lower() == "true",
+    }
+    return templates.TemplateResponse(request, "dashboard.html", context)
 
 
 @app.post("/search")
