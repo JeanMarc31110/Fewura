@@ -1,5 +1,5 @@
 #define MyAppName "FEWURA PROSPECT"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "FEWURA"
 #define MyAppExeName "FEWURA_Prospect.exe"
 
@@ -11,7 +11,7 @@ AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\FEWURA\PROSPECT
 DefaultGroupName=FEWURA\PROSPECT
 OutputDir=output
-OutputBaseFilename=FEWURA_PROSPECT_Setup_1.0.0
+OutputBaseFilename=FEWURA_PROSPECT_Setup_1.0.1
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
@@ -22,6 +22,8 @@ UninstallDisplayName=FEWURA PROSPECT
 CreateUninstallRegKey=yes
 SetupLogging=yes
 MinVersion=10.0.17763
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
